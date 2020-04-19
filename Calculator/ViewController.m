@@ -90,7 +90,7 @@
                 self.screenLabel.text = [self subtract:@[number, self.screenLabel.text]];
             }
         }
-        if(self.isThirdNumber) {
+        if(self.isThirdNumber && ![forOperation isEqualToString:@"cancel"]) {
             if ([self.operation1 isEqualToString:@"+"]) {
                 self.screenLabel.text = [self add:@[self.number1, self.screenLabel.text]];
                 }
@@ -215,7 +215,7 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
     NSMutableString *pressedText = [[NSMutableString alloc] initWithString:((UIButton *)sender).titleLabel.text];
     if(readyForProgression &&
     !([pressedText isEqualToString:@"="] ||[pressedText isEqual:@"%"]))
-        [self cancelProgression:pressedText readyForProgression:&readyForProgression isEqual:&isEqualProgression operation:tempOperation];
+        [self cancelProgression:@"cancel" readyForProgression:&readyForProgression isEqual:&isEqualProgression operation:tempOperation];
     if(![self editOperation1:pressedText readyForProgression:readyForProgression])
         return;
     [self editNumber:readyForProgression];
