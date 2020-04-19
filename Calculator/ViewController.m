@@ -233,17 +233,16 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
             [self.number1 setString:number1];
             return;
         }
+        isEqualProgression = YES;
         if ([pressedText isEqualToString:@"%"]) {
             double value = [self.screenLabel.text doubleValue] / 100.0;
             self.screenLabel.text = [NSString stringWithFormat:@"%40.20g",value];
             return;
         }
-        isEqualProgression = YES;
         NSMutableString *number1 = [NSMutableString stringWithString: self.screenLabel.text];
         NSMutableString *number2 = [NSMutableString stringWithString: self.number1];
         [self calculateProgressionTerm:@[number1, number2]];
         readyForProgression = YES;
-        isEqualProgression = NO;
         return;
     }
     if([pressedText isEqualToString:@"%"]) {
