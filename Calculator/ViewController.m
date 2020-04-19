@@ -248,7 +248,12 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
     }
     if([pressedText isEqualToString:@"%"]) {
         NSMutableString *number1 = [NSMutableString stringWithString: self.screenLabel.text];
-        NSMutableString *number2 = [NSMutableString stringWithString: self.number1];
+        NSMutableString *number2;
+        if(self.isThirdNumber)
+            number2 = [NSMutableString stringWithString: self.number2];
+        else
+            number2 = [NSMutableString stringWithString: self.number1];
+
         [self percentProgression:@[number2, number1, @"%"]];
         if(!self.isThirdNumber)
             tempOperation = [[NSString alloc] initWithString:self.operation1];
