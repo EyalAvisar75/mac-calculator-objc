@@ -18,6 +18,7 @@
 @property (nonatomic, strong) NSMutableString *number3;
 @property BOOL isLastDigit;
 @property BOOL isPlusMinus;
+@property BOOL isThirdNumber;
 @end
 
 @implementation ViewController
@@ -31,6 +32,7 @@
 }
 
 - (IBAction)handleDigit:(id)sender {
+    self.isThirdNumber = ([self.number2 isEqualToString:@""])?NO:YES;
     if (!self.isLastDigit || self.isPlusMinus) {
         self.screenLabel.text = @"0";
         [self showValue];
@@ -198,7 +200,7 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
     [self cancelProgression:pressedText readyForProgression:&readyForProgression operation:tempOperation];
     if(![self editOperation1:pressedText readyForProgression:readyForProgression])
         return;
-    BOOL isNumber = [self editNumber:readyForProgression];
+    [self editNumber:readyForProgression];
     [self editOperation2:pressedText];
     
     self.isLastDigit = NO;
@@ -230,7 +232,7 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
         [self divideBinary:pressedText];
         return;
     }
-    if(!isNumber)
+    if(!self.isThirdNumber)
         [self resetOperation2:pressedText];
     if ([self.operation2 isEqualToString:@"X"] &&
         ![self.number3 isEqualToString:@""]) {
