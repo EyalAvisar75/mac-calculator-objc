@@ -70,16 +70,18 @@
     if(*readyForProgression &&
        !([forOperation isEqualToString:@"="] ||
          [forOperation isEqual:@"%"])){
-        *readyForProgression = NO;
-        *isEqual = NO;
         if (tempOperation) {
             NSString *number = [NSString new];
-            number = [NSString stringWithString:self.number1];
+            if(self.isThirdNumber)
+                number = [NSString stringWithString:self.number2];
+            else
+                number = [NSString stringWithString:self.number1];
+
             if ([tempOperation isEqualToString:@"X"]) {
                 self.screenLabel.text = [self multiply:@[number, self.screenLabel.text]];
             }
             else if ([tempOperation isEqualToString:@"/"]) {
-                self.screenLabel.text = [self divide:@[number ,self.screenLabel.text]];
+                self.screenLabel.text = [self divide:@[number, self.screenLabel.text]];
             }
             else if ([tempOperation isEqualToString:@"+"]) {
                 self.screenLabel.text = [self add:@[number, self.screenLabel.text]];
@@ -88,6 +90,18 @@
                 self.screenLabel.text = [self subtract:@[number, self.screenLabel.text]];
             }
         }
+        if(self.isThirdNumber) {
+            if ([self.operation1 isEqualToString:@"+"]) {
+                self.screenLabel.text = [self add:@[self.number1, self.screenLabel.text]];
+                }
+            else {
+                self.screenLabel.text = [self subtract:@[self.number1, self.screenLabel.text]];
+            }
+            
+        }
+
+        *readyForProgression = NO;
+        *isEqual = NO;
         [self editData];
         [self.number1 setString:@""];
     }
@@ -198,8 +212,10 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
     static BOOL readyForProgression = NO;
     static BOOL isEqualProgression = NO;
     static NSString *tempOperation;
-    NSString *pressedText = ((UIButton *)sender).titleLabel.text;
-    [self cancelProgression:pressedText readyForProgression:&readyForProgression isEqual:&isEqualProgression operation:tempOperation];
+    NSMutableString *pressedText = [[NSMutableString alloc] initWithString:((UIButton *)sender).titleLabel.text];
+    if(readyForProgression &&
+    !([pressedText isEqualToString:@"="] ||[pressedText isEqual:@"%"]))
+        [self cancelProgression:pressedText readyForProgression:&readyForProgression isEqual:&isEqualProgression operation:tempOperation];
     if(![self editOperation1:pressedText readyForProgression:readyForProgression])
         return;
     [self editNumber:readyForProgression];
@@ -208,7 +224,13 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
     self.isLastDigit = NO;
     self.isPlusMinus = NO;
     //start solving exercises
-    if ([pressedText isEqualToString:@"="] || isEqualProgression) {//||readyForProgression
+    if ([pressedText isEqualToString:@"="]) {//||readyForProgression
+        if (readyForProgression && !isEqualProgression) {
+            [pressedText setString:@""];
+            NSString *operation = [[NSString alloc] initWithString:tempOperation];
+            [self cancelProgression:pressedText readyForProgression:&readyForProgression isEqual:&isEqualProgression operation:tempOperation];
+            [self.operation1 setString:operation];
+        }
         if ([pressedText isEqualToString:@"%"]) {
             double value = [self.screenLabel.text doubleValue] / 100.0;
             self.screenLabel.text = [NSString stringWithFormat:@"%40.20g",value];
@@ -218,14 +240,18 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
         NSMutableString *number1 = [NSMutableString stringWithString: self.screenLabel.text];
         NSMutableString *number2 = [NSMutableString stringWithString: self.number1];
         [self calculateProgressionTerm:@[number1, number2]];
-        readyForProgression = true;
+        readyForProgression = YES;
+        isEqualProgression = NO;
         return;
     }
-    if([pressedText isEqual:@"%"]) {
+    if([pressedText isEqualToString:@"%"]) {
         NSMutableString *number1 = [NSMutableString stringWithString: self.screenLabel.text];
         NSMutableString *number2 = [NSMutableString stringWithString: self.number1];
         [self percentProgression:@[number2, number1, @"%"]];
-        tempOperation = [[NSString alloc] initWithString:self.operation1];
+        if(!self.isThirdNumber)
+            tempOperation = [[NSString alloc] initWithString:self.operation1];
+        else
+            tempOperation = [[NSString alloc] initWithString:self.operation2];
         readyForProgression = true;
         return;
     }
