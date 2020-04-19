@@ -242,6 +242,7 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
         NSMutableString *number1 = [NSMutableString stringWithString: self.screenLabel.text];
         NSMutableString *number2 = [NSMutableString stringWithString: self.number1];
         [self calculateProgressionTerm:@[number1, number2]];
+        self.isLastDigit = YES;
         readyForProgression = YES;
         return;
     }
@@ -254,6 +255,7 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
         else
             tempOperation = [[NSString alloc] initWithString:self.operation2];
         readyForProgression = true;
+        self.isLastDigit = YES;
         return;
     }
     
