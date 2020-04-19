@@ -227,9 +227,11 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
     if ([pressedText isEqualToString:@"="]) {//||readyForProgression
         if (readyForProgression && !isEqualProgression) {
             [pressedText setString:@""];
-            NSString *operation = [[NSString alloc] initWithString:tempOperation];
+            NSString *number1 = [[NSString alloc] initWithString:self.screenLabel.text];
             [self cancelProgression:pressedText readyForProgression:&readyForProgression isEqual:&isEqualProgression operation:tempOperation];
-            [self.operation1 setString:operation];
+            [self.operation1 setString:tempOperation];
+            [self.number1 setString:number1];
+            return;
         }
         if ([pressedText isEqualToString:@"%"]) {
             double value = [self.screenLabel.text doubleValue] / 100.0;
