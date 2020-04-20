@@ -280,6 +280,7 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
                 termN = [self divide:@[termN, quotient]];
             }
     }
+    if(self.isProgression){
         if ([self.progressionArray[1] isEqual:@"+"]) {
             self.screenLabel.text = [self add:@[termN, quotient]];
         }
@@ -292,8 +293,18 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
         else {
             self.screenLabel.text = [self divide:@[termN, quotient]];
         }
-    if(self.progressionArray.count > 2)
-        self.progressionArray[0] = self.screenLabel.text;
+    }
+    else {
+        self.screenLabel.text = [self multiply:@[termN, quotient]];
+        double value = [self.screenLabel.text doubleValue] / 100.0;
+        self.screenLabel.text = [NSString stringWithFormat:@"%40.15g", value];
+    }
+    if(self.progressionArray.count > 2){
+        if(self.isProgression)
+            self.progressionArray[0] = self.screenLabel.text;
+        else
+            self.progressionArray[2] = self.screenLabel.text;
+    }
     if (self.progressionArray.count > 3) {
         self.progressionArray[1] = [[NSString alloc] initWithString:self.progressionArray.lastObject];
         [self.progressionArray removeLastObject];
@@ -301,19 +312,33 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
 }
 - (IBAction)handleOperations:(id)sender {
     NSMutableString *pressedText = [[NSMutableString alloc] initWithString:((UIButton *)sender).titleLabel.text];
-    if(self.isProgression &&
+    if((self.isProgression || self.isPercentageProgression) &&
        !([pressedText isEqual:@"="] || [pressedText isEqual:@"%"])){
+        if (self.isPercentageProgression) {
+            double value = [self.screenLabel.text doubleValue]
+            + [self.progressionArray[0] doubleValue];
+            self.screenLabel.text = [NSString stringWithFormat:@"%40.15g",value];
+        }
         self.isProgression = NO;
+        self.isPercentageProgression = NO;
         self.progressionArray = [[NSMutableArray alloc] initWithArray:@[]];
         [self.number1 setString:self.screenLabel.text];
     }
-    else if(self.isProgression){
+    else if(self.isProgression && [pressedText isEqual:@"%"]){
+        double value = [self.screenLabel.text doubleValue] / 100.0;
+        if (self.progressionArray.count > 2) {
+            self.progressionArray[0] = [NSString stringWithFormat:@"%40.15g",value];
+        }
+        self.screenLabel.text = [NSString stringWithFormat:@"%40.15g",value];
+        return;
+    }
+    else if(self.isProgression || self.isPercentageProgression){
         [self calculateProgression];
         return;
     }
     else if ([self.operation2 isEqual:@""] &&
             ![self.operation1 isEqual:@""] &&
-            [pressedText isEqual:@"="]){
+            ([pressedText isEqual:@"="] || [pressedText isEqual:@"%"])){//[pressedText isEqual:@"%"]
         NSString *number2;
         NSString *operation2;
         NSString *number1 = [[NSString alloc] initWithString:self.number1];
@@ -321,9 +346,8 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
         
         [self.progressionArray addObject:number1];
         [self.progressionArray addObject:operation1];
-        if(![self.number1 isEqual:@""] &&
-           self.isLastDigit &&
-           [self.number2 isEqual:@""]){//[self.number2 isEqual:@""]
+        if(![self.number1 isEqual:@""] && self.isLastDigit
+           && [self.number2 isEqual:@""]){//[self.number2 isEqual:@""]
             self.isLastDigit = NO;
             number2 = [[NSString alloc] initWithString:self.screenLabel.text];
             [self.progressionArray addObject:number2];
@@ -332,7 +356,12 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
             operation2 = [[NSString alloc] initWithString:self.operation2];
             [self.progressionArray addObject:operation2];
         }
-        self.isProgression = YES;
+        if([pressedText isEqual:@"="]){
+            self.isProgression = YES;
+        }
+        else {
+            self.isPercentageProgression = YES;
+        }
         [self calculateProgression];
         return;
     }
@@ -448,7 +477,7 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
         else
             number2 = [NSMutableString stringWithString: self.number1];
 
-        [self percentProgression:@[number2, number1, @"%"]];
+        [self percentProgressionDraft:@[number2, number1, @"%"]];
         if(!self.isThirdNumber)
             tempOperation = [[NSString alloc] initWithString:self.operation1];
         else
@@ -575,7 +604,7 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
     else
         [self.operation1 setString:@""];
 }
-- (void)percentProgression:(NSArray *)numbers {
+- (void)percentProgressionDraft:(NSArray *)numbers {
     if (numbers.count == 3) {
         double value = [numbers[1] doubleValue] * [numbers[0] doubleValue] /100.0;
         self.screenLabel.text = [NSString stringWithFormat:@"%40.15g",value];
