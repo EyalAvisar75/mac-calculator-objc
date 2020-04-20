@@ -19,6 +19,9 @@
 @property BOOL isLastDigit;
 @property BOOL isPlusMinus;
 @property BOOL isThirdNumber;
+@property BOOL isProgression;
+@property BOOL isPercentageProgression;
+@property NSMutableArray *progressionArray;
 @end
 
 @implementation ViewController
@@ -60,6 +63,7 @@
 }
 - (IBAction)handlePlusMinus:(id)sender {
     self.isPlusMinus = YES;
+    self.isLastDigit = NO;
     NSString *number = [[NSString alloc] initWithString: self.screenLabel.text];
     double value = [number doubleValue];
     if(value != 0)
@@ -122,17 +126,61 @@
      return YES;
 }
 
-- (void)editOperation2:(NSString *)operationCandidate {
-    if(![self.number2 isEqualToString:@""] &&
-       ([operationCandidate isEqualToString:@"X"] ||
-        [operationCandidate isEqualToString:@"/"])){
-        [self.operation2 setString:operationCandidate];
+-(void)editOperation:(NSString *)operation
+{
+    if (!self.isLastDigit &&
+        !([operation isEqual:@"="] || [operation isEqual:@"%"])) {
+        if (![self.operation2 isEqual:@""]) {
+            [self.operation2 setString:operation];
+        }
+        else {
+            if(self.isProgression)
+                self.progressionArray[1] = operation;
+            [self.operation1 setString:operation];
+        }
+        return;
+    }
+    if ([self.operation1 isEqualToString:@""]) {
         self.isLastDigit = NO;
+        if ([operation isEqualToString:@"="]) {
+            return;
+        }
+        else if ([operation isEqualToString:@"%"]) {
+            double value = [self.screenLabel.text doubleValue] / 100.0;
+            self.screenLabel.text = [NSString stringWithFormat:@"%40.15g",value];
+            return;
+        }
+        [self.operation1 setString:operation];
+        return;
+    }
+
+    if([self.number3 isEqualToString:@""]){//![self.number2 isEqualToString:@""]
+        self.isLastDigit = NO;
+        [self.operation2 setString:operation];
         return;
     }
 }
 
-- (BOOL)editNumber:(BOOL)readyForProgression {
+- (BOOL)editNumber {
+    if (!self.isLastDigit) {
+        return NO;
+    }
+    if ([self.number1 isEqualToString:@""]) {
+        [self.number1 setString:self.screenLabel.text];
+        return YES;
+    }
+    else if([self.number2 isEqualToString:@""]){
+        [self.number2 setString:self.screenLabel.text];
+        return YES;
+    }
+    else if([self.number3 isEqualToString:@""]){
+        [self.number3 setString:self.screenLabel.text];
+        return YES;
+    }
+    return NO;
+}
+
+- (BOOL)editNumberDraft:(BOOL)readyForProgression {
     if (!readyForProgression && [self.number1 isEqualToString:@""]) {
         [self.number1 setString:self.screenLabel.text];
         return YES;
@@ -208,18 +256,129 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
     }
 }
 
+-(void)calculateProgression {
+    if (self.progressionArray.count == 2) {//1 term progression
+        if ([self.progressionArray[1] isEqual:@"+"]) {
+            self.screenLabel.text = [self add:@[self.screenLabel.text, self.progressionArray[0]]];
+        }
+        else if ([self.progressionArray[1] isEqual:@"-"]) {
+            self.screenLabel.text = [self subtract:@[self.screenLabel.text, self.progressionArray[0]]];
+        }
+        else if ([self.progressionArray[1] isEqual:@"X"]) {
+            self.screenLabel.text = [self multiply:@[self.screenLabel.text, self.progressionArray[0]]];
+        }
+        else {
+            self.screenLabel.text = [self divide:@[self.screenLabel.text, self.progressionArray[0]]];
+        }
+    }
+}
 - (IBAction)handleOperations:(id)sender {
+    NSMutableString *pressedText = [[NSMutableString alloc] initWithString:((UIButton *)sender).titleLabel.text];
+    if(self.isProgression &&
+       !([pressedText isEqual:@"="] || [pressedText isEqual:@"%"])){
+        self.isProgression = NO;
+        self.progressionArray = [[NSMutableArray alloc] initWithArray:@[]];
+        [self.number1 setString:self.screenLabel.text];
+        [self.operation1 setString:pressedText];
+        return;
+    }
+    else if(self.isProgression){
+        [self calculateProgression];
+        return;
+    }
+    else if ([self.operation2 isEqual:@""] &&
+            ![self.operation1 isEqual:@""] &&
+            [pressedText isEqual:@"="]){
+        NSString *number1 = [[NSString alloc] initWithString:self.number1];
+        NSString *operation1 = [[NSString alloc] initWithString:self.operation1];
+        [self.progressionArray addObject:number1];
+        [self.progressionArray addObject:operation1];
+        self.isProgression = YES;
+        [self calculateProgression];
+        return;
+    }
+    
+    [self editNumber];
+//     {
+//        [self calculateProgression]; //1 element
+//    }
+    [self editOperation:pressedText];
+    //enter progression here
+    if(![self.number2 isEqual:@""]){//![pressedText isEqual:@"="]
+        if([self.operation1 isEqual:@"X"] ||
+           [self.operation1 isEqual:@"/"]){
+            NSString *number1 = [[NSString alloc] initWithString:self.number1];
+            NSString *number2 = [[NSString alloc] initWithString:self.number2];
+            NSString *operation1 = [[NSString alloc] initWithString:self.operation1];
+            [self.progressionArray addObject:number1];
+            [self.progressionArray addObject:number2];
+            [self.progressionArray addObject:operation1];
+            if([self.operation1 isEqual:@"X"])
+                self.screenLabel.text = [self multiply:@[self.number1, self.number2]];
+            else
+                self.screenLabel.text = [self divide:@[self.number1, self.number2]];
+            self.isProgression = YES;
+            [self.number1 setString:self.screenLabel.text];
+            [self.number2 setString:@""];
+            [self.operation1 setString:self.operation2];
+            [self.operation2 setString:@""];
+            return;
+        }
+    }
+    if([self.operation2 isEqual:@"+"] ||
+       [self.operation2 isEqual:@"-"]){
+        NSString *number1 = [[NSString alloc] initWithString:self.number1];
+        NSString *number2 = [[NSString alloc] initWithString:self.number2];
+        NSString *operation1 = [[NSString alloc] initWithString:self.operation1];
+        [self.progressionArray addObject:number1];
+        [self.progressionArray addObject:number2];
+        [self.progressionArray addObject:operation1];
+        if([self.operation1 isEqual:@"+"])
+            self.screenLabel.text = [self add:@[self.number1, self.number2]];
+        else
+            self.screenLabel.text = [self subtract:@[self.number1, self.number2]];
+        self.isProgression = YES;
+        [self.number1 setString:self.screenLabel.text];
+        [self.number2 setString:@""];
+        [self.operation1 setString:self.operation2];
+        [self.operation2 setString:@""];
+        return;
+    }
+    if(![self.number3 isEqual:@""]){//![pressedText isEqual:@"="]
+        NSString *number1 = [[NSString alloc] initWithString:self.number1];
+        NSString *number2 = [[NSString alloc] initWithString:self.number2];
+        NSString *number3 = [[NSString alloc] initWithString:self.number3];
+        NSString *operation2 = [[NSString alloc] initWithString:self.operation2];
+        [self.progressionArray addObject:number1];
+        [self.progressionArray addObject:number2];
+        [self.progressionArray addObject:number3];
+        [self.progressionArray addObject:operation2];
+        if([self.operation2 isEqual:@"X"])
+            [self multiplyTernaryExpression:pressedText];
+        else if([self.operation2 isEqual:@"/"])
+            [self divideTernaryExpression:pressedText];
+        self.isProgression = YES;
+        [self.number1 setString:self.screenLabel.text];
+        [self.number2 setString:@""];
+        [self.number3 setString:@""];
+        [self.operation1 setString:pressedText];
+        [self.operation2 setString:@""];
+        return;
+    }
+}
+
+-(void)draft {
     static BOOL readyForProgression = NO;
     static BOOL isEqualProgression = NO;
     static NSString *tempOperation;
-    NSMutableString *pressedText = [[NSMutableString alloc] initWithString:((UIButton *)sender).titleLabel.text];
+    NSMutableString *pressedText;// = /*[[NSMutableString alloc] initWithString:((UIButton *)sender).titleLabel.text];*/
     if(readyForProgression &&
     !([pressedText isEqualToString:@"="] ||[pressedText isEqual:@"%"]))
         [self cancelProgression:@"cancel" readyForProgression:&readyForProgression isEqual:&isEqualProgression operation:tempOperation];
     if(![self editOperation1:pressedText readyForProgression:readyForProgression])
         return;
-    [self editNumber:readyForProgression];
-    [self editOperation2:pressedText];
+    [self editNumberDraft:readyForProgression];
+    //[self editOperation2:pressedText];
     
     self.isLastDigit = NO;
     self.isPlusMinus = NO;
@@ -294,11 +453,20 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
         doChainAddition(self, pressedText);
     }
     
-}
 
+}
 - (IBAction)handleAC:(id)sender {
     UIButton *pressed = (UIButton *) sender;
     NSString *pressedText = ((UIButton *)sender).titleLabel.text;
+    if(self.isProgression &&
+       ![pressedText isEqualToString:@"AC"]) {
+        [self.number1 setString:self.screenLabel.text];
+        self.progressionArray[0] = self.number1; //good for 1 term progression
+        [self.operation1 setString:self.progressionArray[1]];//good for 1 term progression
+        self.screenLabel.text = @"0";
+        [pressed setTitle:@"AC" forState:UIControlStateNormal];
+        return;
+    }
     if([pressedText isEqualToString:@"AC"]){
         self.number1 = [NSMutableString new];
         self.number2 = [NSMutableString new];
@@ -337,6 +505,7 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
     self.operation1 = [NSMutableString new];
     self.operation2 = [NSMutableString new];
     self.number3 = [NSMutableString new];
+    self.progressionArray = [NSMutableArray new];
     [self showValue];
 }
 
