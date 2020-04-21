@@ -114,12 +114,16 @@
     
     if([[pressed currentTitle] isEqual:@"="] ||
             [[pressed currentTitle] isEqual:@"%"]){
+        self.isLastDigit = NO;
+        if(self.progressionNumbersArray.count > 0 ){
+            [self calculateProgressionNextTerm];
+            return;
+        }
         //[self.numbers addObject:self.screenLabel.text];
         //[self.operations addObject:[pressed currentTitle]];
         NSLog(@"nums calc %@",self.numbers);
         NSLog(@"nums ops %@",self.operations);
-        [self calculateProgression];
-        self.isLastDigit = NO;
+        [self calculateProgressionA1];
     }
     else {
         [self.operations removeLastObject];
@@ -136,17 +140,36 @@
     [self.numbers addObject:self.screenLabel.text];
 }
 
--(void)calculateProgression{
-//    static NSString *operation = nil;
-//    if(!operation){
-//        operation = [self.operations lastObject];
-//
-//    }
-    [self.progressionOperationsArray addObject:[self.operations lastObject]];
+- (void)calculateTerm1Unary {
+    if(self.operations.count == 1){
+        if(![self calculateMultiplication:@[self.numbers[0],self.numbers[0]] operation:self.operations[0]]){
+            [self calculateAddition:@[self.numbers[0],self.numbers[0]] operation:self.operations[0]];
+        }
+    }
+}
+
+-(void)calculateProgressionA1{
+    NSString *operation = [NSString stringWithString:[self.operations lastObject]];
+    NSString *number;
+    [self.progressionOperationsArray addObject: operation];
     [self.operations removeLastObject];
+    if (self.operations.count == 0) {
+        [self.progressionOperationsArray removeAllObjects];
+        return;
+    }
     NSLog(@"ops %@ pops %@", self.operations, self.progressionOperationsArray);
-    if(self.numbers.count - self.operations.count == 0){
-        
+    if(self.numbers.count == self.operations.count){
+        operation = [NSString stringWithString:[self.operations lastObject]];
+        number = [NSString stringWithString:[self.numbers lastObject]];
+        [self.progressionOperationsArray addObject:operation];
+        [self.progressionNumbersArray addObject:number];
+        [self calculateTerm1Unary];
+        if(self.operations.count == 2){
+            [self calculateMultiplication:@[self.numbers[0],self.numbers[1]] operation:self.operations[1]];
+            [self calculateAddition:@[self.screenLabel.text, self.numbers[1]] operation:self.operations[0]];
+        }
+        [self.progressionNumbersArray insertObject:self.screenLabel.text atIndex:0];
+        return;
     }
     if(self.progressionNumbersArray.count == 0){
         [self.progressionOperationsArray addObject:[self.operations lastObject]];
@@ -168,9 +191,20 @@
             i--;
         }
     }
-    
+    [self.progressionNumbersArray insertObject:self.screenLabel.text atIndex:0];
+}
+-(void)calculateProgressionNextTerm{
+    NSLog(@"prog ops %@", self.progressionOperationsArray);
+    if(![self calculateMultiplication:self.progressionNumbersArray operation:self.progressionOperationsArray[1]]){
+        [self calculateAddition:self.progressionNumbersArray operation:self.progressionOperationsArray[1]];
+    }
+    [self.progressionNumbersArray removeObjectAtIndex:0];
+    [self.progressionNumbersArray insertObject:self.screenLabel.text atIndex:0];
 }
 -(void)calculate {
+    if([[self.operations lastObject] isEqual:@"="]){
+        return;
+    }
     if(self.operations.count == 2){//definition is based on operations count for consistency
         if(self.numbers.count == 2 && [self calculateMultiplication:self.numbers operation:self.operations[0]]){
             [self calculated1Numbers];
