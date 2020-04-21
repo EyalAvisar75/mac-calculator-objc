@@ -5,280 +5,298 @@
 //  Created by eyal avisar on 07/04/2020.
 //  Copyright © 2020 eyal avisar. All rights reserved.
 //
-//start with an operation deal with = %
 #import "ViewController.h"
 
 @interface ViewController ()
 @property (weak, nonatomic) IBOutlet UILabel *screenLabel;
 @property (weak, nonatomic) IBOutlet UIButton *ACButton;
-@property (nonatomic, strong) NSMutableString *number1;
-@property (nonatomic, strong) NSMutableString *number2;
-@property (nonatomic, strong) NSMutableString *operation1;
-@property (nonatomic, strong) NSMutableString *operation2;
-@property (nonatomic, strong) NSMutableString *number3;
+@property (nonatomic, strong) NSMutableArray *numbers;
+@property (nonatomic, strong) NSMutableArray *operations;
 @property BOOL isLastDigit;
 @property BOOL isPlusMinus;
-@property BOOL isThirdNumber;
 @property BOOL isProgression;
 @property BOOL isPercentageProgression;
-@property NSMutableArray *progressionArray;
+@property NSMutableArray *progressionNumbersArray;
+@property NSMutableArray *progressionOperationsArray;
 @end
+//deal with 7+4X%= -> 7 + 0.16 * 4^1 %% 7+0.000256 * 4^2
 
 @implementation ViewController
 
-- (void)showValue {
-    if (![self.screenLabel.text isEqualToString:@"Not a number"]) {
-        double value = [self.screenLabel.text doubleValue];
-        self.screenLabel.text = [NSString stringWithFormat:@"%40.20g",value];
-        
-    }
-}
-
 - (IBAction)handleDigit:(id)sender {
-    self.isThirdNumber = ([self.number2 isEqualToString:@""])?NO:YES;
-    if (!self.isLastDigit || self.isPlusMinus) {
+    if (!self.isLastDigit) {
         self.screenLabel.text = @"0";
-        [self showValue];
     }
-    self.isPlusMinus = NO;
     self.isLastDigit = YES;
     NSString *pressedText = ((UIButton *)sender).titleLabel.text;
-    if ([self.screenLabel.text isEqualToString:@"0"]){
-        self.screenLabel.text = pressedText;
-        [self showValue];
+    NSString *number = self.screenLabel.text;
+    if([pressedText isEqual:@"+/-"]){
+        self.isLastDigit = NO;
+        double value = [number doubleValue];
+        if(value != 0)
+            value = value * -1;
+        self.screenLabel.text = [NSString stringWithFormat:@"%40.15g",value];
+        self.isPlusMinus = YES;
+        return;
     }
+    BOOL isDecimal = [number containsString:@"."];
+
+    if(isDecimal && [pressedText isEqual:@"."])
+        return;
+    if([pressedText isEqual:@"."])
+        number = [number stringByAppendingString:pressedText];
     else {
-        self.screenLabel.text = [self.screenLabel.text stringByAppendingString:pressedText];
-        [self showValue];
+        if(!isDecimal){
+            double value = [number doubleValue] * 10 + [pressedText doubleValue];
+            number = [NSString stringWithFormat:@"%40.15g", value];
+        }
+        else
+            number = [number stringByAppendingString:pressedText];
     }
+    self.screenLabel.text = number;
     [self.ACButton setTitle:@"C" forState:UIControlStateNormal];
 }
-- (IBAction)handleDot:(id)sender {
-    UIButton *pressed = (UIButton *) sender;
-    if ([self.screenLabel.text containsString:@"."]) {
-        return;
-    }
-    self.screenLabel.text = [self.screenLabel.text stringByAppendingString:pressed.titleLabel.text];
-    [self showValue];
+
+
+-(void)cancelProgression:(NSMutableString *)pressedText {
+
+
+    
 }
-- (IBAction)handlePlusMinus:(id)sender {
-    self.isPlusMinus = YES;
+
+- (void)prepareForProgression:(NSMutableString *)pressedText {
+    
+}
+
+
+
+- (BOOL)calculateMultiplication:(NSArray *)numbers operation:(NSString *)operation {
+    if([operation isEqual:@"X"]){
+        self.screenLabel.text = [self multiply:numbers];
+        return YES;
+    }
+    else if([operation isEqual:@"/"]){
+        self.screenLabel.text = [self divide:numbers];
+        return YES;
+    }
+    return NO;
+}
+
+- (BOOL)calculateAddition:(NSArray *)numbers operation:(NSString *)operation{
+    if([operation isEqual:@"+"]){
+        self.screenLabel.text = [self add:numbers];
+        return YES;
+    }
+    else if([operation isEqual:@"-"]){
+        self.screenLabel.text = [self subtract:numbers];
+        return YES;
+    }
+    return NO;
+}
+
+- (IBAction)handleOperations:(id)sender {
+    UIButton *pressed = (UIButton *)sender;
+    if(self.isLastDigit || self.isPlusMinus){
+        [self.numbers addObject:self.screenLabel.text];
+        [self.operations addObject:[pressed currentTitle]];
+        [self calculate];
+        NSLog(@"nums calc %@",self.numbers);
+        NSLog(@"nums ops %@",self.operations);
+        self.isLastDigit = NO;
+        self.isPlusMinus = NO;
+        if(!([[pressed currentTitle] isEqual:@"="] ||
+             [[pressed currentTitle] isEqual:@"%"]))
+            return;
+    }
+    else if(self.numbers.count == 0){
+        self.numbers[0] = @"0";
+    }
+    
+    if([[pressed currentTitle] isEqual:@"="] ||
+            [[pressed currentTitle] isEqual:@"%"]){
+        //[self.numbers addObject:self.screenLabel.text];
+        //[self.operations addObject:[pressed currentTitle]];
+        NSLog(@"nums calc %@",self.numbers);
+        NSLog(@"nums ops %@",self.operations);
+        [self calculateProgression];
+        self.isLastDigit = NO;
+    }
+    else {
+        [self.operations removeLastObject];
+        [self.operations addObject:[pressed currentTitle]];
+        NSLog(@"ops %@",self.operations);
+        NSLog(@"nums %@",self.numbers);
+    }
+}
+
+- (void)calculated1Numbers {
+    NSLog(@"calculated1Numbers");
+    [self.numbers removeAllObjects];
+    [self.operations removeObjectAtIndex:0];
+    [self.numbers addObject:self.screenLabel.text];
+}
+
+-(void)calculateProgression{
+//    static NSString *operation = nil;
+//    if(!operation){
+//        operation = [self.operations lastObject];
+//
+//    }
+    [self.progressionOperationsArray addObject:[self.operations lastObject]];
+    [self.operations removeLastObject];
+    NSLog(@"ops %@ pops %@", self.operations, self.progressionOperationsArray);
+    if(self.numbers.count - self.operations.count == 0){
+        
+    }
+    if(self.progressionNumbersArray.count == 0){
+        [self.progressionOperationsArray addObject:[self.operations lastObject]];
+        [self.progressionNumbersArray addObject:[self.numbers lastObject]];
+        for (int i = 0; i < self.operations.count; i++) {
+            if([self calculateMultiplication:@[self.numbers[i], self.numbers[i+1]] operation:self.operations[i]]){
+                [self.operations removeObjectAtIndex:i];
+                [self.numbers removeObjectAtIndex:i];
+                self.numbers[i] = self.screenLabel.text;
+                i--;
+            }
+        }
+        
+        for (int i = 0; i < self.operations.count; i++) {
+            [self calculateAddition:@[self.numbers[i], self.numbers[i+1]] operation:self.operations[i]];
+            [self.operations removeObjectAtIndex:i];
+            [self.numbers removeObjectAtIndex:i];
+            self.numbers[i] = self.screenLabel.text;
+            i--;
+        }
+    }
+    
+}
+-(void)calculate {
+    if(self.operations.count == 2){//definition is based on operations count for consistency
+        if(self.numbers.count == 2 && [self calculateMultiplication:self.numbers operation:self.operations[0]]){
+            [self calculated1Numbers];
+        }
+    }
+    if(self.operations.count == 2){
+        if([self.operations[1] isEqual:@"+"] ||
+           [self.operations[1] isEqual:@"-"]){
+            [self calculateAddition:@[self.numbers[0],self.numbers[1]] operation:self.operations[0]];
+            [self calculated1Numbers];
+        }
+    }
+    if(self.operations.count == 3 &&
+       ([self.operations[2] isEqual:@"+"] ||
+       [self.operations[2] isEqual:@"-"])){
+        [self calculateMultiplication:@[self.numbers[1],self.numbers[2]] operation:self.operations[1]];
+        [self calculateAddition:@[self.numbers[0], self.screenLabel.text] operation:self.operations[0]];
+        NSString *operation = [self.operations lastObject];
+        [self.operations removeAllObjects];
+        [self.numbers removeAllObjects];
+        [self.operations addObject:operation];
+        [self.numbers addObject:self.screenLabel.text];
+    }
+    if(self.operations.count == 3 &&
+       ([self.operations[2] isEqual:@"X"] ||
+       [self.operations[2] isEqual:@"/"])){
+        [self calculateMultiplication:@[self.numbers[1],self.numbers[2]] operation:self.operations[1]];
+        [self.operations removeObjectAtIndex:1];
+        [self.numbers removeLastObject];
+        [self.numbers removeLastObject];
+        [self.numbers addObject:self.screenLabel.text];
+    }
+}
+- (void)resetFields {
+    self.numbers = [NSMutableArray new];
+    self.operations =[NSMutableArray new];
+    self.progressionNumbersArray = [NSMutableArray new];
+    self.progressionOperationsArray = [NSMutableArray new];
     self.isLastDigit = NO;
-    NSString *number = [[NSString alloc] initWithString: self.screenLabel.text];
-    double value = [number doubleValue];
-    if(value != 0)
-        value = value * -1;
-    self.screenLabel.text = [NSString stringWithFormat:@"%40.20g",value];
+    self.isPlusMinus = NO;
+    self.isProgression = NO;
+    self.isPercentageProgression = NO;
 }
-- (void)cancelProgression:(NSString *)forOperation readyForProgression:(BOOL *)readyForProgression isEqual:(BOOL *)isEqual operation:(NSString *)tempOperation {
-    if(*readyForProgression &&
-       !([forOperation isEqualToString:@"="] ||
-         [forOperation isEqual:@"%"])){
-        if (tempOperation) {
-            NSString *number = [NSString new];
-            if(self.isThirdNumber)
-                number = [NSString stringWithString:self.number2];
-            else
-                number = [NSString stringWithString:self.number1];
 
-            if ([tempOperation isEqualToString:@"X"]) {
-                self.screenLabel.text = [self multiply:@[number, self.screenLabel.text]];
-            }
-            else if ([tempOperation isEqualToString:@"/"]) {
-                self.screenLabel.text = [self divide:@[number, self.screenLabel.text]];
-            }
-            else if ([tempOperation isEqualToString:@"+"]) {
-                self.screenLabel.text = [self add:@[number, self.screenLabel.text]];
-            }
-            else {
-                self.screenLabel.text = [self subtract:@[number, self.screenLabel.text]];
-            }
-        }
-        if(self.isThirdNumber && ![forOperation isEqualToString:@"cancel"]) {
-            if ([self.operation1 isEqualToString:@"+"]) {
-                self.screenLabel.text = [self add:@[self.number1, self.screenLabel.text]];
-                }
-            else {
-                self.screenLabel.text = [self subtract:@[self.number1, self.screenLabel.text]];
-            }
-            
-        }
 
-        *readyForProgression = NO;
-        *isEqual = NO;
-        [self editData];
-        [self.number1 setString:@""];
+
+
+- (IBAction)handleAC:(id)sender {
+    UIButton *pressed = (UIButton *) sender;
+    NSString *pressedText = ((UIButton *)sender).titleLabel.text;
+//    [self resetProgressionMode:pressed pressedText:pressedText];
+    if([pressedText isEqualToString:@"AC"]){
+        [self resetFields];
+        self.screenLabel.text = @"0";
     }
-}
-
-- (BOOL)editOperation1:(NSString *)operationCandidate readyForProgression:(BOOL)readyForProgression {
-    if (!readyForProgression && [self.operation1 isEqualToString:@""]) {
-        if ([operationCandidate isEqualToString:@"="]) {
-            return NO;
-        }
-        if ([operationCandidate isEqualToString:@"%"]) {
-            double value = [self.screenLabel.text doubleValue] / 100.0;
-            self.screenLabel.text = [NSString stringWithFormat:@"%40.15g",value];
-            return NO;
-        }
-        [self.operation1 setString:operationCandidate];
-    }
-     return YES;
-}
-
--(void)editOperation:(NSString *)operation
-{
-    if (!self.isLastDigit &&
-        !([operation isEqual:@"="] || [operation isEqual:@"%"])) {
-        if (![self.operation2 isEqual:@""]) {
-            self.isLastDigit = NO;
-            [self.operation2 setString:operation];
+    else {
+        [pressed setTitle:@"AC" forState:UIControlStateNormal];
+        if(self.isLastDigit){
+            self.screenLabel.text = @"0";
         }
         else {
-            if(self.isProgression)
-                self.progressionArray[1] = operation;
-            [self.operation1 setString:operation];
+            [self.operations removeLastObject];
         }
-        return;
-    }
-    if ([self.operation1 isEqualToString:@""]) {
-        self.isLastDigit = NO;
-        if ([operation isEqualToString:@"="]) {
-            return;
-        }
-        else if ([operation isEqualToString:@"%"]) {
-            double value = [self.screenLabel.text doubleValue] / 100.0;
-            self.screenLabel.text = [NSString stringWithFormat:@"%40.15g",value];
-            return;
-        }
-        [self.operation1 setString:operation];
-        return;
-    }
-
-    if([self.number3 isEqualToString:@""]){//![self.number2 isEqualToString:@""]
-        self.isLastDigit = NO;
-        [self.operation2 setString:operation];
-        return;
     }
 }
 
-- (BOOL)editNumber {
-    if (!self.isLastDigit) {
-        return NO;
-    }
-    if ([self.number1 isEqualToString:@""]) {
-        [self.number1 setString:self.screenLabel.text];
-        return YES;
-    }
-    else if([self.number2 isEqualToString:@""]){
-        [self.number2 setString:self.screenLabel.text];
-        return YES;
-    }
-    else if([self.number3 isEqualToString:@""]){
-        [self.number3 setString:self.screenLabel.text];
-        return YES;
-    }
-    return NO;
+- (void)viewDidLoad {
+    [self resetFields];
 }
 
-- (BOOL)editNumberDraft:(BOOL)readyForProgression {
-    if (!readyForProgression && [self.number1 isEqualToString:@""]) {
-        [self.number1 setString:self.screenLabel.text];
-        return YES;
+-(NSString *)add:(NSArray *)numbers {
+    double result = [numbers[0] doubleValue] + [numbers[1] doubleValue];
+    return [NSString stringWithFormat:@"%40.15g",result];
+}
+-(NSString *)subtract:(NSArray *)numbers {
+    double result = [numbers[0] doubleValue] - [numbers[1] doubleValue];
+    return [NSString stringWithFormat:@"%40.15g",result];
+}
+-(NSString *)multiply:(NSArray *)numbers {
+    double result = [numbers[0] doubleValue] * [numbers[1] doubleValue];
+    return [NSString stringWithFormat:@"%40.15g",result];
+}
+-(NSString *)divide:(NSArray *)numbers {
+    if ([numbers[1] doubleValue] == 0) {
+        return @"Not a number";
     }
-    else if(!readyForProgression && [self.number2 isEqualToString:@""]){
-        [self.number2 setString:self.screenLabel.text];
-        return YES;
-    }
-    else if(!readyForProgression && [self.number3 isEqualToString:@""]){
-        [self.number3 setString:self.screenLabel.text];
-        return YES;
-    }
-    return NO;
+    double result = [numbers[0] doubleValue] / [numbers[1] doubleValue];
+    return [NSString stringWithFormat:@"%40.15g",result];
 }
 
-- (void)multiplyBinary:(NSString *)operationToSet {
-    self.screenLabel.text = [self multiply:@[self.number1, self.number2]];
-    double value = [self.screenLabel.text doubleValue];
-    self.screenLabel.text = [NSString stringWithFormat:@"%40.15g",value];
-    [self editData];
-    [self.operation1 setString:operationToSet];
-}
-
-- (void)divideBinary:(NSString *)operationToSet {
-    self.screenLabel.text = [self divide:@[self.number1, self.number2]];
-    double value = [self.screenLabel.text doubleValue];
-    self.screenLabel.text = [NSString stringWithFormat:@"%40.15g",value];
-    [self editData];
-    [self.operation1 setString:operationToSet];
-}
-
-- (void)multiplyTernaryExpression:(NSString *)operationToSet {
-    NSString * result = [self multiply:@[self.number2, self.screenLabel.text]];
-    if([self.operation1 isEqualToString:@"+"])
-        self.screenLabel.text = [self add:@[self.number1, result]];
-    else
-        self.screenLabel.text = [self subtract:@[self.number1, result]];
-    [self editData];
-    [self.operation1 setString:operationToSet];
-}
-
-- (void)divideTernaryExpression:(NSString *)operationToSet {
-    if([self.screenLabel.text isEqualToString:@"0"]){
-        self.screenLabel.text = @"Not a number";
-        return;
-    }
-    NSString * result = [self divide:@[self.number2, self.screenLabel.text]];
-    if([self.operation1 isEqualToString:@"+"])
-        self.screenLabel.text = [self add:@[self.number1, result]];
-    else
-        self.screenLabel.text = [self subtract:@[self.number1, result]];
-    [self editData];
-    [self.operation1 setString:operationToSet];
-}
-
-- (void)resetOperation2:(NSString *)operationCandidate {
-    if (![self.operation2 isEqualToString:@""] &&
-        ![self.number3 isEqualToString:@""]){
-        [self.operation2 setString:operationCandidate];
-    }
-}
-
-static void doChainAddition(ViewController *object, NSString *pressedText) {
-    if([object.operation1 isEqualToString:@"+"]){
-        object.screenLabel.text = [object add:@[object.number1, object.number2]];
-        [object.operation2 setString:pressedText];
-        [object editData];
-    }
-    else if(![object.number2 isEqualToString:@""]){
-        object.screenLabel.text = [object subtract:@[object.number1, object.number2]];
-        [object.operation2 setString:pressedText];
-        [object editData];
-    }
-}
-
--(void)calculateProgression {
+@end
+/*-(void)calculateProgression {
     NSString *quotient;
     NSString *termN;
     if (self.progressionArray.count == 2) {
         quotient = self.progressionArray[0];
         termN = self.screenLabel.text;
     }
-    else if (self.progressionArray.count == 3) {//
-        long quotientIndex = self.progressionArray.count - 1;
-        quotient = self.progressionArray[quotientIndex];
+    else if (self.progressionArray.count == 3) {
+        quotient = self.progressionArray[2];
         termN = self.progressionArray[0];
     }
     else if (self.progressionArray.count > 3) {//
-        long quotientIndex = self.progressionArray.count - 2;
-        quotient = self.progressionArray[quotientIndex];
-        termN = self.progressionArray[0];
+        if(self.isProgression){
+            quotient = self.progressionArray[2];
+            termN = self.progressionArray[0];
             if ([self.progressionArray[3] isEqual:@"X"]) {
                 termN = [self multiply:@[termN, quotient]];
             }
             else {
                 termN = [self divide:@[termN, quotient]];
             }
+        }
+        else {
+            quotient = self.progressionArray[2];
+            termN = quotient;
+            if (self.progressionArray.count == 4) {
+            }
+            else if (self.progressionArray.count == 5){
+                double value = [self.progressionArray[4] doubleValue];
+                value *= value;
+                value /= 100;
+                self.progressionArray[4] = [NSString stringWithFormat:@"%40.15g", value];
+                NSLog(@"pv4 %f",value);
+            }
+        }
     }
     if(self.isProgression){
         if ([self.progressionArray[1] isEqual:@"+"]) {
@@ -305,369 +323,8 @@ static void doChainAddition(ViewController *object, NSString *pressedText) {
         else
             self.progressionArray[2] = self.screenLabel.text;
     }
-    if (self.progressionArray.count > 3) {
+    if (self.progressionArray.count > 3 && self.isProgression) {
         self.progressionArray[1] = [[NSString alloc] initWithString:self.progressionArray.lastObject];
         [self.progressionArray removeLastObject];
     }
-}
-- (IBAction)handleOperations:(id)sender {
-    NSMutableString *pressedText = [[NSMutableString alloc] initWithString:((UIButton *)sender).titleLabel.text];
-    if((self.isProgression || self.isPercentageProgression) &&
-       !([pressedText isEqual:@"="] || [pressedText isEqual:@"%"])){
-        if (self.isPercentageProgression) {
-            double value = [self.screenLabel.text doubleValue]
-            + [self.progressionArray[0] doubleValue];
-            self.screenLabel.text = [NSString stringWithFormat:@"%40.15g",value];
-        }
-        self.isProgression = NO;
-        self.isPercentageProgression = NO;
-        self.progressionArray = [[NSMutableArray alloc] initWithArray:@[]];
-        [self.number1 setString:self.screenLabel.text];
-    }
-    else if(self.isProgression && [pressedText isEqual:@"%"]){
-        double value = [self.screenLabel.text doubleValue] / 100.0;
-        if (self.progressionArray.count > 2) {
-            self.progressionArray[0] = [NSString stringWithFormat:@"%40.15g",value];
-        }
-        self.screenLabel.text = [NSString stringWithFormat:@"%40.15g",value];
-        return;
-    }
-    else if(self.isProgression || self.isPercentageProgression){
-        [self calculateProgression];
-        return;
-    }
-    else if ([self.operation2 isEqual:@""] &&
-            ![self.operation1 isEqual:@""] &&
-            ([pressedText isEqual:@"="] || [pressedText isEqual:@"%"])){//[pressedText isEqual:@"%"]
-        NSString *number2;
-        NSString *operation2;
-        NSString *number1 = [[NSString alloc] initWithString:self.number1];
-        NSString *operation1 = [[NSString alloc] initWithString:self.operation1];
-        
-        [self.progressionArray addObject:number1];
-        [self.progressionArray addObject:operation1];
-        if(![self.number1 isEqual:@""] && self.isLastDigit
-           && [self.number2 isEqual:@""]){//[self.number2 isEqual:@""]
-            self.isLastDigit = NO;
-            number2 = [[NSString alloc] initWithString:self.screenLabel.text];
-            [self.progressionArray addObject:number2];
-        }
-        if(![self.operation2 isEqual:@""]){
-            operation2 = [[NSString alloc] initWithString:self.operation2];
-            [self.progressionArray addObject:operation2];
-        }
-        if([pressedText isEqual:@"="]){
-            self.isProgression = YES;
-        }
-        else {
-            self.isPercentageProgression = YES;
-        }
-        [self calculateProgression];
-        return;
-    }
-    else if (
-             ![self.operation2 isEqual:@""] &&
-             [pressedText isEqual:@"="]){
-        NSString *number1 = [[NSString alloc] initWithString:self.number1];
-        NSString *operation1 = [[NSString alloc] initWithString:self.operation1];
-        NSString *operation2 = [[NSString alloc] initWithString:self.operation2];
-        NSString *number2 = [[NSString alloc] initWithString:self.number2];
-        [self.progressionArray addObject:number1];
-        [self.progressionArray addObject:operation1];
-        [self.progressionArray addObject:number2];
-        [self.progressionArray addObject:operation2];
-        self.isProgression = YES;
-        [self calculateProgression];
-        return;
-    }
-
-    
-    [self editNumber];
-    [self editOperation:pressedText];
-    if(![self.number2 isEqual:@""]){//![pressedText isEqual:@"="]
-        if([self.operation1 isEqual:@"X"] ||
-           [self.operation1 isEqual:@"/"]){
-
-        if([self.operation1 isEqual:@"X"])
-            self.screenLabel.text = [self multiply:@[self.number1, self.number2]];
-        else
-            self.screenLabel.text = [self divide:@[self.number1, self.number2]];
-
-            [self.number1 setString:self.screenLabel.text];
-            [self.number2 setString:@""];
-            [self.operation1 setString:self.operation2];
-            [self.operation2 setString:@""];
-            return;
-        }
-    }
-    if([self.operation2 isEqual:@"+"] ||
-       [self.operation2 isEqual:@"-"]){
-
-        if([self.operation1 isEqual:@"+"])
-            self.screenLabel.text = [self add:@[self.number1, self.number2]];
-        else
-            self.screenLabel.text = [self subtract:@[self.number1, self.number2]];
-        
-        [self.number1 setString:self.screenLabel.text];
-        [self.number2 setString:@""];
-        [self.operation1 setString:self.operation2];
-        [self.operation2 setString:@""];
-        return;
-    }
-    if(![self.number3 isEqual:@""]){
-        
-        if([self.operation2 isEqual:@"X"])
-            [self multiplyTernaryExpression:pressedText];
-        else if([self.operation2 isEqual:@"/"])
-            [self divideTernaryExpression:pressedText];
-        
-        self.isLastDigit = NO;
-        [self.number1 setString:self.screenLabel.text];
-        [self.number2 setString:@""];
-        [self.number3 setString:@""];
-        [self.operation1 setString:pressedText];
-        [self.operation2 setString:@""];
-        return;
-    }
-}
-
--(void)draft {
-    static BOOL readyForProgression = NO;
-    static BOOL isEqualProgression = NO;
-    static NSString *tempOperation;
-    NSMutableString *pressedText;// = /*[[NSMutableString alloc] initWithString:((UIButton *)sender).titleLabel.text];*/
-    if(readyForProgression &&
-    !([pressedText isEqualToString:@"="] ||[pressedText isEqual:@"%"]))
-        [self cancelProgression:@"cancel" readyForProgression:&readyForProgression isEqual:&isEqualProgression operation:tempOperation];
-    if(![self editOperation1:pressedText readyForProgression:readyForProgression])
-        return;
-    [self editNumberDraft:readyForProgression];
-    //[self editOperation2:pressedText];
-    
-    self.isLastDigit = NO;
-    self.isPlusMinus = NO;
-    //start solving exercises
-    if ([pressedText isEqualToString:@"="]) {//||readyForProgression
-        if (readyForProgression && !isEqualProgression) {
-            [pressedText setString:@""];
-            NSString *number1 = [[NSString alloc] initWithString:self.screenLabel.text];
-            [self cancelProgression:pressedText readyForProgression:&readyForProgression isEqual:&isEqualProgression operation:tempOperation];
-            [self.operation1 setString:tempOperation];
-            [self.number1 setString:number1];
-            return;
-        }
-        isEqualProgression = YES;
-        if ([pressedText isEqualToString:@"%"]) {
-            double value = [self.screenLabel.text doubleValue] / 100.0;
-            self.screenLabel.text = [NSString stringWithFormat:@"%40.20g",value];
-            return;
-        }
-        NSMutableString *number1 = [NSMutableString stringWithString: self.screenLabel.text];
-        NSMutableString *number2 = [NSMutableString stringWithString: self.number1];
-        [self calculateProgressionTerm:@[number1, number2]];
-        self.isLastDigit = YES;
-        readyForProgression = YES;
-        return;
-    }
-    if([pressedText isEqualToString:@"%"]) {
-        NSMutableString *number1 = [NSMutableString stringWithString: self.screenLabel.text];
-        NSMutableString *number2;
-        if(self.isThirdNumber)
-            number2 = [NSMutableString stringWithString: self.number2];
-        else
-            number2 = [NSMutableString stringWithString: self.number1];
-
-        [self percentProgressionDraft:@[number2, number1, @"%"]];
-        if(!self.isThirdNumber)
-            tempOperation = [[NSString alloc] initWithString:self.operation1];
-        else
-            tempOperation = [[NSString alloc] initWithString:self.operation2];
-        readyForProgression = true;
-        self.isLastDigit = YES;
-        return;
-    }
-    
-    readyForProgression = NO;
-    //deal with the result on the screen
-    if ([self.operation1 isEqualToString:@"X"] &&
-        ![self.number2 isEqualToString:@""]) {
-        [self multiplyBinary:pressedText];
-        return;
-    }
-    if ([self.operation1 isEqualToString:@"/"] &&
-        ![self.number2 isEqualToString:@""]) {
-        [self divideBinary:pressedText];
-        return;
-    }
-    if(!self.isThirdNumber)
-        [self resetOperation2:pressedText];
-    if ([self.operation2 isEqualToString:@"X"] &&
-        ![self.number3 isEqualToString:@""]) {
-        [self multiplyTernaryExpression:pressedText];
-        return;
-    }
-    if ([self.operation2 isEqualToString:@"/"] &&
-        ![self.number3 isEqualToString:@""]) {
-        [self divideTernaryExpression:pressedText];
-        return;
-    }
-    if (![self.number2 isEqualToString:@""] &&
-        ([pressedText isEqualToString:@"+"] ||
-        [pressedText isEqualToString:@"-"])) {
-        doChainAddition(self, pressedText);
-    }
-    
-
-}
-- (IBAction)handleAC:(id)sender {
-    UIButton *pressed = (UIButton *) sender;
-    NSString *pressedText = ((UIButton *)sender).titleLabel.text;
-    if(self.isProgression &&
-       ![pressedText isEqualToString:@"AC"]) {
-        [self.number1 setString:self.screenLabel.text];
-        self.progressionArray[0] = self.number1; //good for 1 term progression
-        [self.operation1 setString:self.progressionArray[1]];//good for 1 term progression
-        self.screenLabel.text = @"0";
-        [pressed setTitle:@"AC" forState:UIControlStateNormal];
-        NSLog(@"ac progression digit %d",self.isLastDigit);
-        return;
-    }
-    if([pressedText isEqualToString:@"AC"]){
-        self.number1 = [NSMutableString new];
-        self.number2 = [NSMutableString new];
-        self.operation1 = [NSMutableString new];
-        self.operation2 = [NSMutableString new];
-        self.number3 = [NSMutableString new];
-        self.isLastDigit = NO;
-        self.screenLabel.text = @"0";
-        [self showValue];
-    }
-    else {
-        [pressed setTitle:@"AC" forState:UIControlStateNormal];
-        if(self.isLastDigit){
-            self.screenLabel.text = @"0";
-            if (![self.number2 isEqualToString:@""]) {
-                [self.number2 setString:@""];
-            }
-            else {
-                [self.number1 setString:@""];
-            }
-        }
-        else {
-            if (![self.operation2 isEqualToString:@""]) {
-                [self.number2 setString:@""];
-            }
-            else {
-                [self.operation1 setString:@""];
-            }
-        }
-    }
-}
-
-- (void)viewDidLoad {
-    self.number1 = [NSMutableString new];
-    self.number2 = [NSMutableString new];
-    self.operation1 = [NSMutableString new];
-    self.operation2 = [NSMutableString new];
-    self.number3 = [NSMutableString new];
-    self.progressionArray = [NSMutableArray new];
-    [self showValue];
-}
-
--(NSString *)add:(NSArray *)numbers {
-    double result = [numbers[0] doubleValue] + [numbers[1] doubleValue];
-    return [NSString stringWithFormat:@"%40.15g",result];
-}
--(NSString *)subtract:(NSArray *)numbers {
-    double result = [numbers[0] doubleValue] - [numbers[1] doubleValue];
-    return [NSString stringWithFormat:@"%40.15g",result];
-}
--(NSString *)multiply:(NSArray *)numbers {
-    double result = [numbers[0] doubleValue] * [numbers[1] doubleValue];
-    return [NSString stringWithFormat:@"%40.15g",result];
-}
--(NSString *)divide:(NSArray *)numbers {
-    if ([numbers[1] doubleValue] == 0) {
-        return @"Not a number";
-    }
-    double result = [numbers[0] doubleValue] / [numbers[1] doubleValue];
-    return [NSString stringWithFormat:@"%40.15g",result];
-}
--(void) editData {
-    [self.number1 setString:self.screenLabel.text];
-    [self.number2 setString:@""];
-    [self.number3 setString:@""];
-    if (![self.operation2 isEqualToString:@""]) {
-        [self.operation1 setString:self.operation2];
-        [self.operation2 setString:@""];
-    }
-    else
-        [self.operation1 setString:@""];
-}
-- (void)percentProgressionDraft:(NSArray *)numbers {
-    if (numbers.count == 3) {
-        double value = [numbers[1] doubleValue] * [numbers[0] doubleValue] /100.0;
-        self.screenLabel.text = [NSString stringWithFormat:@"%40.15g",value];
-        return;
-    }
-}
-
--(void)calculateProgressionTerm:(NSArray *)numbers {
-    if (![self.operation2 isEqualToString:@""]) {
-        double value = 0;
-        if ([self.operation2 isEqualToString:@"X"]) {
-            if([self.operation1 isEqualToString:@"+"]){
-                value = ([numbers[1] doubleValue] + 1) * [numbers[0] doubleValue];
-            }
-            else {
-                value = ([numbers[1] doubleValue] - 1) * [numbers[0] doubleValue];
-            }
-        }
-        else if ([self.operation2 isEqualToString:@"/"]) {
-            if([numbers[1] doubleValue] == 0){
-                self.screenLabel.text = @"Not a number";
-                return;
-            }
-            if([self.operation1 isEqualToString:@"+"]){
-                value = [numbers[1] doubleValue] / [numbers[0] doubleValue] + [numbers[0] doubleValue];
-            }
-            else {
-                value = [numbers[1] doubleValue] / [numbers[0] doubleValue] - [numbers[0] doubleValue];
-            }
-        }
-        //[self.number1 setString:[NSString stringWithFormat:@"%40.15g",value]];
-        self.screenLabel.text = [NSString stringWithFormat:@"%40.15g",value];
-        [self.operation1 setString:self.operation2];
-        [self.operation2 setString:@""];
-        return;
-    }
-    NSMutableArray *reverseNums = [NSMutableArray new];
-    reverseNums[0] = numbers[1];
-    reverseNums[1] = numbers[0];
-    if (![numbers[0] isEqualToString:numbers[1]] &&
-        ![numbers[0] isEqualToString:self.number2]) {
-        [numbers[0] setString:self.screenLabel.text];
-        [numbers[1] setString:self.number2];
-        reverseNums[0] = numbers[0];
-        reverseNums[1] = numbers[1];
-    }
-    if ([self.operation1 isEqualToString:@"+"]) {
-        self.screenLabel.text = [self add:numbers];
-    }
-    else if([self.operation1 isEqualToString:@"-"]) {
-        self.screenLabel.text = [self subtract:reverseNums];
-    }
-    else if([self.operation1 isEqualToString:@"X"]) {
-        self.screenLabel.text = [self multiply:numbers];
-    }
-    else if([self.operation1 isEqualToString:@"/"]) {
-        if([reverseNums[0] doubleValue] == 0){
-            self.screenLabel.text = @"Not a number";
-            return;
-        }
-        self.screenLabel.text = [self divide:reverseNums];
-    }
-    
-    
-}
-@end
+}*/

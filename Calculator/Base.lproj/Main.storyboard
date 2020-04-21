@@ -44,7 +44,7 @@
                                     <color key="titleColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                 </state>
                                 <connections>
-                                    <action selector="handleDot:" destination="amX-AJ-0fl" eventType="touchUpInside" id="32I-uM-6D8"/>
+                                    <action selector="handleDigit:" destination="amX-AJ-0fl" eventType="touchUpInside" id="QlF-jf-383"/>
                                 </connections>
                             </button>
                             <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="PbV-7F-aPe">
@@ -167,7 +167,7 @@
                                     <color key="titleColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                 </state>
                                 <connections>
-                                    <action selector="handlePlusMinus:" destination="amX-AJ-0fl" eventType="touchUpInside" id="ylq-yn-C5J"/>
+                                    <action selector="handleDigit:" destination="amX-AJ-0fl" eventType="touchUpInside" id="Tb9-7t-zEa"/>
                                 </connections>
                             </button>
                             <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="6uH-sQ-aIH">
