@@ -94,6 +94,18 @@
     return NO;
 }
 
+- (void)calculatePercentage {
+    [self calculateMultiplication:@[self.screenLabel.text, @"100"] operation:@"/"];
+    if (self.progressionOperationsArray.count > 0) {
+        [self.progressionNumbersArray removeObjectAtIndex:0];
+        [self.progressionNumbersArray insertObject:self.screenLabel.text atIndex:0];
+    }
+    else {
+        [self.numbers removeLastObject];
+        [self.numbers addObject:self.screenLabel.text];
+    }
+}
+
 - (IBAction)handleOperations:(id)sender {
     UIButton *pressed = (UIButton *)sender;
     if(self.isLastDigit || self.isPlusMinus){
@@ -111,19 +123,41 @@
     else if(self.numbers.count == 0){
         self.numbers[0] = @"0";
     }
-    
+    static NSString *progressionChanger;
     if([[pressed currentTitle] isEqual:@"="] ||
             [[pressed currentTitle] isEqual:@"%"]){
+        
         self.isLastDigit = NO;
-        if(self.progressionNumbersArray.count > 0 ){
-            [self calculateProgressionNextTerm];
-            return;
+        if(self.progressionNumbersArray.count > 0){
+            if([self.progressionOperationsArray[0] isEqual:@"="] &&
+               [[pressed currentTitle] isEqual:@"%"]){
+                [self calculatePercentage];
+                return;
+            }
+            NSString *progressNumber = [NSString stringWithString:[self.progressionNumbersArray lastObject]];
+            BOOL isOperationContained = YES;
+            for (int i = 0; i < self.operations.count && isOperationContained; i++) {
+                if(![self.progressionOperationsArray containsObject:self.operations[i]]){
+                    isOperationContained = NO;
+                }
+            }
+            if(isOperationContained && [progressionChanger isEqual:progressNumber]){
+                [self calculateProgressionNextTerm];
+                self.numbers[self.numbers.count - 1] = self.screenLabel.text;
+                return;
+
+            }
+            NSLog(@"reg nums while prog %@",self.numbers);//length 1
+            NSLog(@"reg ops while prog %@",self.operations);//length 1
+            NSLog(@"prog nums %@",self.progressionNumbersArray);
+            NSLog(@"prog ops %@",self.progressionOperationsArray);
         }
         //[self.numbers addObject:self.screenLabel.text];
         //[self.operations addObject:[pressed currentTitle]];
         NSLog(@"nums calc %@",self.numbers);
         NSLog(@"nums ops %@",self.operations);
-        [self calculateProgressionA1];
+        progressionChanger = [self.numbers lastObject];
+        [self calculateProgressionA1:[pressed currentTitle]];
     }
     else {
         [self.operations removeLastObject];
@@ -148,11 +182,14 @@
     }
 }
 
--(void)calculateProgressionA1{
+-(void)calculateProgressionA1:(NSString *)pressed{
     NSString *operation = [NSString stringWithString:[self.operations lastObject]];
     NSString *number;
-    [self.progressionOperationsArray addObject: operation];
-    [self.operations removeLastObject];
+    //if last progression exists
+    [self.progressionNumbersArray removeAllObjects];
+    [self.progressionOperationsArray removeAllObjects];
+    [self.progressionOperationsArray addObject: pressed];
+    [self.operations removeObject:@"="];
     if (self.operations.count == 0) {
         [self.progressionOperationsArray removeAllObjects];
         return;
@@ -204,6 +241,12 @@
 -(void)calculate {
     if([[self.operations lastObject] isEqual:@"="]){
         return;
+    }
+    if(self.progressionNumbersArray.count == 0){
+        if([[self.operations lastObject] isEqual:@"%"]){
+            [self calculatePercentage];
+            return;
+        }
     }
     if(self.operations.count == 2){//definition is based on operations count for consistency
         if(self.numbers.count == 2 && [self calculateMultiplication:self.numbers operation:self.operations[0]]){
