@@ -185,6 +185,14 @@
 -(void)calculateProgressionA1:(NSString *)pressed{
     NSString *operation = [NSString stringWithString:[self.operations lastObject]];
     NSString *number;
+    if([pressed isEqual:@"%"] && self.progressionNumbersArray.count == 0){
+        [self calculatePercentageA1];
+        return;
+    }
+    else if([pressed isEqual:@"%"]){
+        [self calculatePercentageNextTerm];
+        return;
+    }
     //if last progression exists
     [self.progressionNumbersArray removeAllObjects];
     [self.progressionOperationsArray removeAllObjects];
@@ -229,6 +237,47 @@
         }
     }
     [self.progressionNumbersArray insertObject:self.screenLabel.text atIndex:0];
+}
+-(void)calculatePercentageA1{
+    NSString *operation = [NSString stringWithString:[self.operations lastObject]];
+    NSString *number = [NSString stringWithString:self.numbers[0]];//maybe
+
+    //if last progression exists
+    [self.progressionNumbersArray removeAllObjects];
+    [self.progressionOperationsArray removeAllObjects];
+    [self.operations removeObject:@"%"];
+    [self.progressionOperationsArray addObject:@"%"];
+    [self.progressionOperationsArray addObject:operation];
+    if (self.operations.count == 1) {
+        [self calculateMultiplication:@[self.numbers[0],self.numbers[0]] operation:@"X"];
+        [self calculateMultiplication:@[self.screenLabel.text,@"100"] operation:@"/"];
+        [self.progressionNumbersArray addObject:number];
+        [self.progressionNumbersArray addObject:self.screenLabel.text];
+    }
+    if (self.operations.count > 1) {
+        [self calculateMultiplication:@[self.numbers[0],self.numbers[1]] operation:@"X"];
+        [self calculateMultiplication:@[self.screenLabel.text,@"100"] operation:@"/"];
+        [self.progressionNumbersArray addObject:number];
+        [self.progressionNumbersArray addObject:self.screenLabel.text];
+    }
+}
+-(void)calculatePercentageNextTerm{
+    NSString *progNum2 = [[NSString alloc] initWithString:self.progressionNumbersArray[1]];
+    self.progressionNumbersArray[0] = progNum2;
+    [self calculateMultiplication:@[self.progressionNumbersArray[0],self.progressionNumbersArray[0]] operation:@"X"];
+    [self calculateMultiplication:@[self.screenLabel.text,@"100"] operation:@"/"];
+    self.progressionNumbersArray[1] = self.screenLabel.text;
+    
+//    [self calculateMultiplication:@[self.progressionNumbersArray[1],self.progressionNumbersArray[1]] operation:@"X"];
+//    [self calculateMultiplication:@[self.screenLabel.text,@"100"] operation:@"/"];
+
+    self.progressionNumbersArray[1] = self.screenLabel.text;
+    if(self.operations.count == 2){
+        [self calculateMultiplication:@[self.progressionNumbersArray[0],self.progressionNumbersArray[1]] operation:@"X"];
+        [self calculateMultiplication:@[self.screenLabel.text,@"100"] operation:@"/"];
+
+        self.progressionNumbersArray[1] = self.screenLabel.text;
+    }
 }
 -(void)calculateProgressionNextTerm{
     NSLog(@"prog ops %@", self.progressionOperationsArray);
