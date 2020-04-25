@@ -12,12 +12,11 @@
 @property (weak, nonatomic) IBOutlet UIButton *ACButton;
 @property (nonatomic, strong) NSMutableArray *numbers;
 @property (nonatomic, strong) NSMutableArray *operations;
+@property BOOL isACPressed;
 @property BOOL isLastDigit;
 @property BOOL isPlusMinus;
 @property BOOL isProgression;
 @property BOOL isPercentageProgression;
-@property NSMutableArray *progressionNumbersArray;
-@property NSMutableArray *progressionOperationsArray;
 @end
 //deal with 7+4X%= -> 7 + 0.16 * 4^1 %% 7+0.000256 * 4^2
 
@@ -81,105 +80,94 @@
     return NO;
 }
 
-- (void)calculatePercentage {
-    [self calculateMultiplication:@[self.screenLabel.text, @"100"] operation:@"/"];
-    if (self.progressionOperationsArray.count > 0) {
-        [self.progressionNumbersArray removeObjectAtIndex:0];
-        [self.progressionNumbersArray insertObject:self.screenLabel.text atIndex:0];
+- (BOOL)calculatePercentage:(UIButton *)pressed {//a+% a*a/100
+    static NSMutableString *quotient;
+    static NSMutableString *toSquare;
+    if(![[pressed currentTitle] isEqual:@"%"]){
+        return NO;
+    }
+    if(self.operations.count == 1){
+        [self calculateMultiplication:@[self.screenLabel.text, @"100"] operation:@"/"];
+        [self.numbers removeLastObject];
     }
     else {
-        [self.numbers removeLastObject];
-//        [self.numbers addObject:self.screenLabel.text];
-        [self.operations removeLastObject];
+        if(toSquare && [toSquare isEqual:@"yes"]){
+            if(quotient)
+                quotient = self.screenLabel.text;
+            [self calculateMultiplication:@[self.screenLabel.text ,self.screenLabel.text] operation:@"X"];
+            [self calculateMultiplication:@[self.screenLabel.text, @"100"] operation:@"/"];
+            [self.numbers removeLastObject];
+            [self.operations removeLastObject];
+            return YES;
+        }
+        if(!quotient){
+            quotient = self.numbers[0];
+        }
+        if(!toSquare){
+            if (self.isLastDigit) {
+                toSquare = @"no";
+            } else {
+                toSquare = @"yes";
+            }
+        }
+        [self calculateMultiplication:@[quotient ,self.screenLabel.text] operation:@"X"];
+        [self calculateMultiplication:@[self.screenLabel.text, @"100"] operation:@"/"];
     }
+    [self.numbers removeLastObject];
+    [self.operations removeLastObject];
+    return YES;
 }
 
-- (IBAction)handleOperations:(id)sender {//maybe i need a condition here to skip this part if i have a progression array
+- (IBAction)handleOperations:(id)sender {
     UIButton *pressed = (UIButton *)sender;
-    if(self.isLastDigit || self.isPlusMinus){
-        [self.numbers addObject:self.screenLabel.text];
+    if(self.isLastDigit || self.isPlusMinus ||
+       [[pressed currentTitle] isEqual:@"="] ||
+       [[pressed currentTitle] isEqual:@"%"]){
+        [self.numbers addObject:self.screenLabel.text]; //save'em
         [self.operations addObject:[pressed currentTitle]];
-        [self calculate];
-        if ([[pressed currentTitle] isEqual:@"%"] &&
-            self.numbers.count == 1 && self.operations.count == 1){
-            [self calculatePercentage];
+        NSLog(@"nums %@ ops %@ pressed %@",self.numbers, self.operations, [[pressed currentTitle] description]);
+        if([self calculatePercentage:pressed]){
+            self.isLastDigit = NO;
             return;
         }
-        NSLog(@"nums calc %@",self.numbers);
-        NSLog(@"nums ops %@",self.operations);
-        self.isLastDigit = NO;
-        self.isPlusMinus = NO;
-        if(!([[pressed currentTitle] isEqual:@"="] ||//kind of a miror condition of what is suggested, yet not efficient. check closely the situation needed for starting progression
-             [[pressed currentTitle] isEqual:@"%"]))
-            return;
-        if ([[pressed currentTitle] isEqual:@"%"] && [self.operations[0] isEqual: [pressed currentTitle]]) {
-            return;
-        }
-    }
-    else if(self.numbers.count == 0){
-        self.numbers[0] = @"0";
-    }
-    static NSString *progressionChanger;
-    if([[pressed currentTitle] isEqual:@"="] ||
-            [[pressed currentTitle] isEqual:@"%"]){
-        //progression array should be ready when the number of operations is equal to or greater by 1 than the number of numbers. equal counted
-        self.isLastDigit = NO;
-        if(self.progressionNumbersArray.count > 0){//percentage progression equal pressed. meaning, end of percentage progression, maybe entry into regular progression check behavior
-            if([self.progressionOperationsArray[0] isEqual:@"="] &&
-               [[pressed currentTitle] isEqual:@"%"]){//situation of progression with % pressed
-                [self calculatePercentage];
-                return;
-            }
-        if(self.progressionNumbersArray.count > 0){//ending percentage progression
-            if([self.progressionOperationsArray[0] isEqual:@"%"] &&
-               [[pressed currentTitle] isEqual:@"="]){
-                if(![self calculateMultiplication:self.progressionNumbersArray operation:self.operations[0]]){
-                    [self calculateAddition:self.progressionNumbersArray operation:self.operations[0]];
-                    self.progressionOperationsArray[0] = @"=";
-                    [self.progressionNumbersArray removeLastObject];
-                    [self.numbers removeLastObject];
-                    [self.numbers addObject:self.screenLabel.text];
-                    [self.progressionOperationsArray removeAllObjects];
-                }//different regularity with +-X/
-                return;
-            }
-        }
-            NSString *progressNumber = [NSString stringWithString:[self.progressionNumbersArray lastObject]];
-            BOOL isOperationContained = YES;//checking exit conditions regular progression
-            for (int i = 0; i < self.operations.count && isOperationContained; i++) {
-                if(![self.progressionOperationsArray containsObject:self.operations[i]]){
-                    isOperationContained = NO;
-                }
-            }
-            if(isOperationContained && [progressionChanger isEqual:progressNumber]){
-                [self calculateProgressionNextTerm];
-                self.numbers[self.numbers.count - 1] = self.screenLabel.text;
-                return;
 
+        if([self isAXB]){
+            if ([[self.operations lastObject] isEqual:@"="]) {
+                self.isProgression = YES;
             }
-            NSLog(@"reg nums while prog %@",self.numbers);//length 1
-            NSLog(@"reg ops while prog %@",self.operations);//length 1
-            NSLog(@"prog nums %@",self.progressionNumbersArray);
-            NSLog(@"prog ops %@",self.progressionOperationsArray);
+            else {
+                self.isProgression = NO;
+            }
+            if(self.operations.count > 1 && [[self.operations lastObject] isEqual:@"="]){
+                [self.operations removeLastObject];
+                return;
+            }
+            return;
         }
-        //[self.numbers addObject:self.screenLabel.text];
-        //[self.operations addObject:[pressed currentTitle]];
-        NSLog(@"nums calc %@",self.numbers);
-        NSLog(@"nums ops %@",self.operations);
-        progressionChanger = [self.numbers lastObject];
-        [self calculateProgressionA1:[pressed currentTitle]];
+        if([self isAdditionInTernaryExpression]){
+            if(!self.isProgression){
+                self.isLastDigit = NO;
+            }
+            return;
+        }
+        self.isLastDigit = NO;//last round was operation
+        self.isPlusMinus = NO;//or this
+        
     }
-    else {//i think equal is the first member of progression array, here changes are made to storage arrays where it's the opposite the idea is that progressions can be reawakened
+    
         [self.operations removeLastObject];
         [self.operations addObject:[pressed currentTitle]];
-        NSLog(@"ops %@",self.operations);
-        NSLog(@"nums %@",self.numbers);
-    }
+        NSLog(@"end ops %@",self.operations);
+        NSLog(@"end nums %@",self.numbers);
+    
 }
 
 - (void)calculated1Numbers {//cleaning after simple running calculation
-    NSLog(@"calculated1Numbers");
     [self.numbers removeAllObjects];
+    if([[self.operations lastObject] isEqual:@"="]){
+        [self.operations removeLastObject];
+        return;
+    }
     [self.operations removeObjectAtIndex:0];
     [self.numbers addObject:self.screenLabel.text];
 }
@@ -192,45 +180,48 @@
     }
 }
 
--(void)calculateProgressionA1:(NSString *)pressed{//actually the full percentage progression function... does not feel good
-    NSString *operation = [NSString stringWithString:[self.operations lastObject]];
-    NSString *number;
-    if([pressed isEqual:@"%"] && self.progressionNumbersArray.count == 0){
-        [self calculatePercentageA1];
-        return;
+- (BOOL)isAXB {//a*b*V a+a*b*V a*=V a*b=V a+b*= a+b*c=V
+    static NSMutableString *quotient;//should know to terminate if ac? isReseted
+    static NSMutableString *termN;
+    if(self.isACPressed){
+        quotient = nil;
+        termN = nil;
+        [self.operations addObject:@"terminateStatic"];
+        [self isAdditionInTernaryExpression];
     }
-    else if([pressed isEqual:@"%"]){
-        [self calculatePercentageNextTerm];
-        return;
+    if (!self.isProgression && termN) {
+        [self.numbers insertObject:termN atIndex:0];
+        termN = nil;
     }
-    //first stage of regular progression
-    //if last progression exists and desolving it. good?
-    [self.progressionNumbersArray removeAllObjects];
-    [self.progressionOperationsArray removeAllObjects];
-    [self.progressionOperationsArray addObject: pressed];
-    [self.operations removeObject:@"="];
-    if (self.operations.count == 0) {
-        [self.progressionOperationsArray removeAllObjects];
-        return;
+    if(!([self.operations containsObject:@"X"] ||
+         [self.operations containsObject:@"/"])){
+        return NO;
     }
-    NSLog(@"ops %@ pops %@", self.operations, self.progressionOperationsArray);
-    if(self.numbers.count == self.operations.count){
-        operation = [NSString stringWithString:[self.operations lastObject]];
-        number = [NSString stringWithString:[self.numbers lastObject]];
-        [self.progressionOperationsArray addObject:operation];
-        [self.progressionNumbersArray addObject:number];
-        [self calculateTerm1Unary];
-        if(self.operations.count == 2){//a+b= a*b=
-            [self calculateMultiplication:@[self.numbers[0],self.numbers[1]] operation:self.operations[1]];
-            [self calculateAddition:@[self.screenLabel.text, self.numbers[1]] operation:self.operations[0]];
-        }
-        [self.progressionNumbersArray insertObject:self.screenLabel.text atIndex:0];
-        return;//called from handleOperations
+    if(!quotient){
+        quotient = [self.numbers lastObject];
     }
-    if(self.progressionNumbersArray.count == 0){//a+b* a+= a*= open ended
-        [self.progressionOperationsArray addObject:[self.operations lastObject]];
-        [self.progressionNumbersArray addObject:[self.numbers lastObject]];
-        for (int i = 0; i < self.operations.count; i++) {//hasn't arrived the situations above, can be simplified simplification 1 resolving X/
+    if(![[self.operations lastObject]isEqual:@"="]){
+        quotient = nil;
+    }
+    
+    if(quotient && self.operations.count == 3 && self.isLastDigit){//a+b*c=
+        [self calculateMultiplication:@[self.numbers[1],quotient]  operation:self.operations[1]];
+        [self calculateAddition:@[self.screenLabel.text,self.numbers[0]] operation:self.operations[0]];
+        [self.operations removeObjectAtIndex:0];
+        termN = [[NSMutableString alloc]initWithString: self.screenLabel.text];
+        return YES;
+    }
+    if(quotient && self.operations.count == 3){//a+b*=
+        [self calculateMultiplication:@[self.numbers[0],quotient]  operation:self.operations[1]];
+        [self calculateAddition:@[self.screenLabel.text,quotient] operation:self.operations[0]];
+        [self.operations removeObjectAtIndex:0];
+        [self.numbers removeAllObjects];
+        termN = [[NSMutableString alloc]initWithString: self.screenLabel.text];
+        return YES;
+    }
+    
+    if(!quotient){
+        for (int i = 0; i < self.operations.count - 1; i++) {
             if([self calculateMultiplication:@[self.numbers[i], self.numbers[i+1]] operation:self.operations[i]]){
                 [self.operations removeObjectAtIndex:i];
                 [self.numbers removeObjectAtIndex:i];
@@ -238,129 +229,92 @@
                 i--;
             }
         }
-        
-        for (int i = 0; i < self.operations.count; i++) {//hasn't arrived the situations above, can be simplified simplification 2 resolving +-
-            [self calculateAddition:@[self.numbers[i], self.numbers[i+1]] operation:self.operations[i]];
-            [self.operations removeObjectAtIndex:i];
-            [self.numbers removeObjectAtIndex:i];
-            self.numbers[i] = self.screenLabel.text;
-            i--;
+//        termN = nil;
+        return NO;
+    }
+    
+    NSString *number = self.screenLabel.text;
+    if(self.numbers.count == 2 && self.operations.count == 2){
+        number = self.numbers[0];
+    }
+//    //handle static number reset after ac self.isReset
+    //handle progression stop with * like a*===*b
+    
+//    a*= a*b= a+b*= a+b*c=
+    
+    NSArray *operands = (quotient)?@[number,quotient]:self.numbers;
+    if(self.operations.count == 2){//is aXb? return and exit
+        if(operands.count == 2 && [self calculateMultiplication:operands operation:self.operations[0]]){
+            [self calculated1Numbers];
+            termN = [[NSMutableString alloc]initWithString: self.screenLabel.text];
+            return YES;
         }
     }
-    [self.progressionNumbersArray insertObject:self.screenLabel.text atIndex:0];
+    quotient = nil;
+    return NO;
 }
--(void)calculatePercentageA1{
-    NSString *operation = [NSString stringWithString:[self.operations lastObject]];
 
-    //if last progression exists - dissolving
-    [self.progressionNumbersArray removeAllObjects];
-    [self.progressionOperationsArray removeAllObjects];
-    [self.operations removeObject:@"%"];
-    [self.progressionOperationsArray addObject:@"%"];
-    [self.progressionOperationsArray addObject:operation];
-    if (self.numbers.count == 1) {
-        [self calculateMultiplication:@[self.numbers[0],self.numbers[0]] operation:@"X"];
-        [self calculateMultiplication:@[self.screenLabel.text,@"100"] operation:@"/"];
-        [self.progressionNumbersArray addObject:self.numbers[0]];
-        [self.progressionNumbersArray addObject:self.screenLabel.text];
+- (BOOL)isAdditionInTernaryExpression {//chain addition
+    static NSString *difference;
+    static NSMutableString *termN;
+    if(self.isACPressed){
+        difference = nil;
+        termN = nil;
+        self.isACPressed = NO;
+        if([[self.operations lastObject] isEqual:@"terminateStatic"]){
+            [self.operations removeLastObject];
+            return NO;
+        }
     }
-    if (self.numbers.count == 2) {
-        //self.isProgression = NO;
-        [self calculateMultiplication:@[self.numbers[0],self.numbers[1]] operation:@"X"];
-        [self calculateMultiplication:@[self.screenLabel.text,@"100"] operation:@"/"];
-        [self.progressionNumbersArray addObject:self.numbers[0]];
-        [self.progressionNumbersArray addObject:self.screenLabel.text];
-    }
-    if (self.numbers.count == 3) {
+    if(![[self.operations lastObject] isEqual:@"="]){
         self.isProgression = NO;
-        [self calculateMultiplication:@[self.numbers[1],self.numbers[2]] operation:@"X"];
-        [self calculateMultiplication:@[self.screenLabel.text,@"100"] operation:@"/"];
-        [self.progressionNumbersArray addObject:self.numbers[1]];
-        [self.progressionNumbersArray addObject:self.screenLabel.text];
     }
-    
-}
--(void)calculatePercentageNextTerm{
-    if(self.numbers.count > 1){
-        if(!self.isProgression){
-            self.isProgression = YES;
-            return;
-        }
+    if (!self.isProgression && termN) {
+        [self.numbers insertObject:termN atIndex:0];
+        termN = nil;
     }
-    if(self.numbers.count > 1){
-        [self calculateMultiplication:@[self.progressionNumbersArray[0],self.progressionNumbersArray[1]] operation:@"X"];
-        [self calculateMultiplication:@[self.screenLabel.text,@"100"] operation:@"/"];
+    if([self.operations containsObject:@"X"] ||
+       [self.operations containsObject:@"/"]){
+        return NO;
+    }
+    if (!difference) {
+        difference = [self.numbers lastObject];
+    }
+    if(![self.operations containsObject:@"="]){
+        difference = nil;
+    }
+    else {
+        self.isProgression = YES;
+    }
 
-        self.progressionNumbersArray[1] = self.screenLabel.text;
-        return;
+    NSArray *numbers;
+    if(difference && self.numbers.count == 1){
+        numbers = @[self.screenLabel.text, difference];
     }
-    //unary expression
+    else if(self.numbers.count == 2){
+        numbers = self.numbers;
+    }
+    else {
+        return NO;
+    }
+    if(self.operations.count == 2){// || [self.operations[0] isEqual:@"="]
+        [self calculateAddition:numbers operation:self.operations[0]];
+        [self calculated1Numbers];
+        if(self.isProgression)
+            termN = self.screenLabel.text;
+        return YES;
+    }
+    return NO;
+}
 
-    NSString *progNum2 = [[NSString alloc] initWithString:self.progressionNumbersArray[1]];
-    self.progressionNumbersArray[0] = progNum2;
-    [self calculateMultiplication:@[self.progressionNumbersArray[0],self.progressionNumbersArray[0]] operation:@"X"];
-    [self calculateMultiplication:@[self.screenLabel.text,@"100"] operation:@"/"];
-    self.progressionNumbersArray[1] = self.screenLabel.text;
-    self.progressionNumbersArray[1] = self.screenLabel.text;
-    
-}
--(void)calculateProgressionNextTerm{
-    NSLog(@"prog ops %@", self.progressionOperationsArray);
-    if(![self calculateMultiplication:self.progressionNumbersArray operation:self.progressionOperationsArray[1]]){
-        [self calculateAddition:self.progressionNumbersArray operation:self.progressionOperationsArray[1]];
-    }
-    [self.progressionNumbersArray removeObjectAtIndex:0];
-    [self.progressionNumbersArray insertObject:self.screenLabel.text atIndex:0];
-}
--(void)calculate {//junction switch to progression or not?
-    if([[self.operations lastObject] isEqual:@"="] || [[self.operations lastObject] isEqual:@"%"]){
-        return;
-    }
-    if([[self.operations lastObject] isEqual:@"%"]){
-        [self calculatePercentageA1];
-    }
-    if(self.operations.count == 2){//definition is based on operations count for consistency
-        if(self.numbers.count == 2 && [self calculateMultiplication:self.numbers operation:self.operations[0]]){
-            [self calculated1Numbers];
-        }
-    }
-    if(self.operations.count == 2){
-        if([self.operations[1] isEqual:@"+"] ||
-           [self.operations[1] isEqual:@"-"]){
-            [self calculateAddition:@[self.numbers[0],self.numbers[1]] operation:self.operations[0]];
-            [self calculated1Numbers];
-        }
-    }
-    if(self.operations.count == 3 &&
-       ([self.operations[2] isEqual:@"+"] ||
-       [self.operations[2] isEqual:@"-"])){
-        [self calculateMultiplication:@[self.numbers[1],self.numbers[2]] operation:self.operations[1]];
-        [self calculateAddition:@[self.numbers[0], self.screenLabel.text] operation:self.operations[0]];
-        NSString *operation = [self.operations lastObject];
-        [self.operations removeAllObjects];
-        [self.numbers removeAllObjects];
-        [self.operations addObject:operation];
-        [self.numbers addObject:self.screenLabel.text];
-    }
-    if(self.operations.count == 3 &&
-       ([self.operations[2] isEqual:@"X"] ||
-       [self.operations[2] isEqual:@"/"])){
-        [self calculateMultiplication:@[self.numbers[1],self.numbers[2]] operation:self.operations[1]];
-        [self.operations removeObjectAtIndex:1];
-        [self.numbers removeLastObject];
-        [self.numbers removeLastObject];
-        [self.numbers addObject:self.screenLabel.text];
-    }
-}
 - (void)resetFields {
     self.numbers = [NSMutableArray new];
     self.operations =[NSMutableArray new];
-    self.progressionNumbersArray = [NSMutableArray new];
-    self.progressionOperationsArray = [NSMutableArray new];
     self.isLastDigit = NO;
     self.isPlusMinus = NO;
     self.isProgression = NO;
     self.isPercentageProgression = NO;
+    self.screenLabel.text = @"0";
 }
 
 - (IBAction)handleAC:(id)sender {
@@ -368,8 +322,8 @@
     NSString *pressedText = ((UIButton *)sender).titleLabel.text;
 //    [self resetProgressionMode:pressed pressedText:pressedText];
     if([pressedText isEqualToString:@"AC"]){
+        self.isACPressed = YES;
         [self resetFields];
-        self.screenLabel.text = @"0";
     }
     else {
         [pressed setTitle:@"AC" forState:UIControlStateNormal];
@@ -407,15 +361,3 @@
 }
 
 @end
-// handleOperations -> calculate if progression is not looming:
-//a, a+b a*b a+b+c a*b/c since everything but a is on the verge,
-//this part might allow trickling to the next stage
-//condition if self.operation.count <= self.numbers.count
-//sub conditions if % = not pressed - calculate
-//if pressed
-//a= return isDigit = no, a is stored in numbers
-//a+b= load to progressionArray send to calculate to send to progression
-//back all the way and return. before getting to calculate pinch the last to
-//progression array and leave calculate to simplify and enter a first term.
-//and so on
-//saved under commit: reorganization
