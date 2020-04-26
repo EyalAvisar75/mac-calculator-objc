@@ -85,7 +85,7 @@
     static NSMutableString *toSquare;
     if(![[pressed currentTitle] isEqual:@"%"]){
         if(quotient || toSquare){
-            if(![self calculateMultiplication:@[self.screenLabel.text, quotient] operation:self.operations[0]]){
+            if(![self calculateMultiplication:@[quotient,self.screenLabel.text] operation:self.operations[0]]){
                 [self calculateAddition:@[self.screenLabel.text, quotient] operation:self.operations[0]];
                 [self.operations removeLastObject];
                 [self.operations addObject:[pressed currentTitle]];
@@ -162,7 +162,6 @@
     }
     if(self.isProgression){
         if([[self.operations lastObject] isEqual:@"="]){
-//            [self isAXB];
             self.isProgression = NO;
             [self.operations removeAllObjects];
             [self.operations addObject:[pressed currentTitle]];
