@@ -84,6 +84,16 @@
     static NSMutableString *quotient;
     static NSMutableString *toSquare;
     if(![[pressed currentTitle] isEqual:@"%"]){
+        if(quotient || toSquare){
+            if(![self calculateMultiplication:@[self.screenLabel.text, quotient] operation:self.operations[0]]){
+                [self calculateAddition:@[self.screenLabel.text, quotient] operation:self.operations[0]];
+                [self.operations removeLastObject];
+                [self.operations addObject:[pressed currentTitle]];
+            }
+            quotient = nil;
+            toSquare = nil;
+            self.isProgression = NO;
+        }
         return NO;
     }
     if(self.operations.count == 1){
@@ -91,9 +101,11 @@
         [self.numbers removeLastObject];
     }
     else {
+        self.isProgression = YES;
         if(toSquare && [toSquare isEqual:@"yes"]){
             if(quotient)
                 quotient = self.screenLabel.text;
+            self.numbers[0] = quotient;
             [self calculateMultiplication:@[self.screenLabel.text ,self.screenLabel.text] operation:@"X"];
             [self calculateMultiplication:@[self.screenLabel.text, @"100"] operation:@"/"];
             [self.numbers removeLastObject];
@@ -130,14 +142,8 @@
             self.isLastDigit = NO;
             return;
         }
-
+        self.isLastDigit = NO;
         if([self isAXB]){
-            if ([[self.operations lastObject] isEqual:@"="]) {
-                self.isProgression = YES;
-            }
-            else {
-                self.isProgression = NO;
-            }
             if(self.operations.count > 1 && [[self.operations lastObject] isEqual:@"="]){
                 [self.operations removeLastObject];
                 return;
@@ -154,7 +160,19 @@
         self.isPlusMinus = NO;//or this
         
     }
-    
+    if(self.isProgression){
+        if([[self.operations lastObject] isEqual:@"="]){
+//            [self isAXB];
+            self.isProgression = NO;
+            [self.operations removeAllObjects];
+            [self.operations addObject:[pressed currentTitle]];
+        }
+        else
+            [self calculatePercentage:pressed];
+        self.isLastDigit = NO;
+        [self.numbers removeAllObjects];
+        [self.numbers addObject:self.screenLabel.text];
+    }
         [self.operations removeLastObject];
         [self.operations addObject:[pressed currentTitle]];
         NSLog(@"end ops %@",self.operations);
@@ -189,19 +207,18 @@
         [self.operations addObject:@"terminateStatic"];
         [self isAdditionInTernaryExpression];
     }
-    if (!self.isProgression && termN) {
-        [self.numbers insertObject:termN atIndex:0];
+    if(![self.operations containsObject:@"="]){
+        self.isProgression = NO;
         termN = nil;
     }
+    else if(!self.isProgression){
+        self.isProgression = YES;
+        quotient = [self.numbers lastObject];
+    }
+
     if(!([self.operations containsObject:@"X"] ||
          [self.operations containsObject:@"/"])){
         return NO;
-    }
-    if(!quotient){
-        quotient = [self.numbers lastObject];
-    }
-    if(![[self.operations lastObject]isEqual:@"="]){
-        quotient = nil;
     }
     
     if(quotient && self.operations.count == 3 && self.isLastDigit){//a+b*c=
@@ -209,6 +226,7 @@
         [self calculateAddition:@[self.screenLabel.text,self.numbers[0]] operation:self.operations[0]];
         [self.operations removeObjectAtIndex:0];
         termN = [[NSMutableString alloc]initWithString: self.screenLabel.text];
+        self.isProgression = YES;
         return YES;
     }
     if(quotient && self.operations.count == 3){//a+b*=
@@ -217,6 +235,7 @@
         [self.operations removeObjectAtIndex:0];
         [self.numbers removeAllObjects];
         termN = [[NSMutableString alloc]initWithString: self.screenLabel.text];
+        self.isProgression = YES;
         return YES;
     }
     
@@ -229,20 +248,22 @@
                 i--;
             }
         }
-//        termN = nil;
+        self.isProgression = NO;
         return NO;
     }
     
     NSString *number = self.screenLabel.text;
     if(self.numbers.count == 2 && self.operations.count == 2){
         number = self.numbers[0];
+        quotient = self.numbers[1];
     }
-//    //handle static number reset after ac self.isReset
     //handle progression stop with * like a*===*b
     
 //    a*= a*b= a+b*= a+b*c=
     
     NSArray *operands = (quotient)?@[number,quotient]:self.numbers;
+    if([self.operations containsObject:@"="])
+        self.isProgression = YES;
     if(self.operations.count == 2){//is aXb? return and exit
         if(operands.count == 2 && [self calculateMultiplication:operands operation:self.operations[0]]){
             [self calculated1Numbers];
@@ -251,6 +272,7 @@
         }
     }
     quotient = nil;
+    self.isProgression = NO;
     return NO;
 }
 
@@ -270,7 +292,6 @@
         self.isProgression = NO;
     }
     if (!self.isProgression && termN) {
-        [self.numbers insertObject:termN atIndex:0];
         termN = nil;
     }
     if([self.operations containsObject:@"X"] ||
@@ -292,12 +313,13 @@
         numbers = @[self.screenLabel.text, difference];
     }
     else if(self.numbers.count == 2){
+        difference = self.numbers[1];
         numbers = self.numbers;
     }
     else {
         return NO;
     }
-    if(self.operations.count == 2){// || [self.operations[0] isEqual:@"="]
+    if(self.operations.count >= 2){//self.operations.count == 2
         [self calculateAddition:numbers operation:self.operations[0]];
         [self calculated1Numbers];
         if(self.isProgression)
