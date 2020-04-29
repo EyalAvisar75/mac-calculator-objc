@@ -12,22 +12,24 @@
 @property (weak, nonatomic) IBOutlet UIButton *ACButton;
 @property (nonatomic, strong) NSMutableArray *numbers;
 @property (nonatomic, strong) NSMutableArray *operations;
+@property (nonatomic, strong) NSMutableArray *ACNumbers;
+@property (nonatomic, strong) NSMutableArray *ACOperations;
 @property BOOL isACPressed;
 @property BOOL isLastDigit;
 @property BOOL isPlusMinus;
 @property BOOL isProgression;
-@property BOOL isPercentageProgression;
 @end
 //deal with 7+4X%= -> 7 + 0.16 * 4^1 %% 7+0.000256 * 4^2
 
 @implementation ViewController
 
 - (IBAction)handleDigit:(id)sender {
+    NSString *pressedText = ((UIButton *)sender).titleLabel.text;
+    [self pressedCConsequences:pressedText];
     if (!self.isLastDigit) {
         self.screenLabel.text = @"0";
     }
     self.isLastDigit = YES;
-    NSString *pressedText = ((UIButton *)sender).titleLabel.text;
     NSString *number = self.screenLabel.text;
     if([pressedText isEqual:@"+/-"]){
         self.isLastDigit = NO;
@@ -37,6 +39,11 @@
         self.screenLabel.text = [NSString stringWithFormat:@"%40.15g",value];
         self.isPlusMinus = YES;
         return;
+    }
+    if(self.isProgression){
+        [self resetFields];
+        self.isLastDigit = YES;
+        self.isACPressed = YES;
     }
     BOOL isDecimal = [number containsString:@"."];
 
@@ -132,17 +139,24 @@
 
 - (IBAction)handleOperations:(id)sender {
     UIButton *pressed = (UIButton *)sender;
+    BOOL changePressed = [self pressedCConsequences:[pressed currentTitle]];
+    if (changePressed) {
+        pressed = self.ACButton;
+    }
+    else {
+        changePressed = NO;
+    }
     if(self.isLastDigit || self.isPlusMinus ||
        [[pressed currentTitle] isEqual:@"="] ||
        [[pressed currentTitle] isEqual:@"%"]){
-        [self.numbers addObject:self.screenLabel.text]; //save'em
-        [self.operations addObject:[pressed currentTitle]];
-        NSLog(@"nums %@ ops %@ pressed %@",self.numbers, self.operations, [[pressed currentTitle] description]);
-        if([self calculatePercentage:pressed]){
-            self.isLastDigit = NO;
-            return;
-        }
-        self.isLastDigit = NO;
+            [self.numbers addObject:self.screenLabel.text]; //save'em
+            [self.operations addObject:[pressed currentTitle]];
+            NSLog(@"nums %@ ops %@ pressed %@",self.numbers, self.operations, [[pressed currentTitle] description]);
+                if([self calculatePercentage:pressed]){
+                    self.isLastDigit = NO;
+                    return;
+                }
+//        self.isLastDigit = NO;//damages a+b*c in isAXB
         if([self isAXB]){
             if(self.operations.count > 1 && [[self.operations lastObject] isEqual:@"="]){
                 [self.operations removeLastObject];
@@ -220,6 +234,10 @@
         return NO;
     }
     
+    if([self.numbers containsObject:@"changeDifference"]){
+        quotient = self.screenLabel.text;
+        [self.numbers removeObject:@"changeDifference"];
+    }
     if(quotient && self.operations.count == 3 && self.isLastDigit){//a+b*c=
         [self calculateMultiplication:@[self.numbers[1],quotient]  operation:self.operations[1]];
         [self calculateAddition:@[self.screenLabel.text,self.numbers[0]] operation:self.operations[0]];
@@ -304,6 +322,10 @@
         difference = nil;
     }
     else {
+        if([self.numbers containsObject:@"changeDifference"]){
+            difference = [self.numbers lastObject];
+            [self.numbers removeObject:@"changeDifference"];
+        }
         self.isProgression = YES;
     }
 
@@ -331,17 +353,17 @@
 - (void)resetFields {
     self.numbers = [NSMutableArray new];
     self.operations =[NSMutableArray new];
+    self.ACNumbers = [NSMutableArray new];
+    self.ACOperations =[NSMutableArray new];
     self.isLastDigit = NO;
     self.isPlusMinus = NO;
     self.isProgression = NO;
-    self.isPercentageProgression = NO;
     self.screenLabel.text = @"0";
 }
 
-- (IBAction)handleAC:(id)sender {
+- (IBAction)handleAC:(id)sender {//aV,+V a+b
     UIButton *pressed = (UIButton *) sender;
     NSString *pressedText = ((UIButton *)sender).titleLabel.text;
-//    [self resetProgressionMode:pressed pressedText:pressedText];
     if([pressedText isEqualToString:@"AC"]){
         self.isACPressed = YES;
         [self resetFields];
@@ -349,13 +371,110 @@
     else {
         [pressed setTitle:@"AC" forState:UIControlStateNormal];
         if(self.isLastDigit){
+            [self.ACNumbers addObject:self.screenLabel.text];
             self.screenLabel.text = @"0";
         }
         else {
-            [self.operations removeLastObject];
+            if([[self.operations lastObject] isEqual:@"="]){
+                [self.ACNumbers addObject:self.screenLabel.text];
+                self.screenLabel.text = @"0";
+            }
         }
+        if(self.operations.count > 0)
+            [self.ACOperations addObject:[self.operations lastObject]];
+        if(self.numbers.count > 0)
+            [self.ACNumbers addObject:[self.numbers lastObject]];
+        NSLog(@"ops %@, nums %@, acops %@, acnums %@", self.operations, self.numbers, self.ACOperations ,self.ACNumbers);
     }
 }
+-(BOOL)pressedCConsequences:(NSString *)pressed{
+    if(self.ACNumbers.count == 0 && self.ACOperations.count == 0){
+        return NO;
+    }//c wasn't pressed
+    BOOL isInsideDigit;
+    if ([@"0123456789" containsString:pressed]) {
+        isInsideDigit = YES;
+    }
+    else
+        isInsideDigit = NO;
+    
+    if(self.ACOperations.count == 0){//a cv
+        [self resetFields];
+        return NO;
+    }
+    if(self.ACNumbers.count == 1 && self.numbers.count == 1){//a + Cv ac{+}{5} nums{5}ops{+}
+        if([pressed isEqual:@"="]){
+            [self.operations removeAllObjects];
+        }
+        if(isInsideDigit){
+            [self resetFields];
+        }
+        [self.ACOperations removeAllObjects];
+        [self.ACNumbers removeAllObjects];
+        return NO;
+    }
+    if(self.ACNumbers.count == 2 && self.operations.count == 1){//a + b cv //ac + 4,9 ops + nums 9
+        if([pressed isEqual:@"="]){
+            self.screenLabel.text = self.numbers[0];
+        }
+        [self.ACOperations removeAllObjects];
+        [self.ACNumbers removeAllObjects];
+        return NO;
+    }
+    if(self.numbers.count == 2 && self.ACNumbers.count == 1){////a + b * Cv
+        BOOL changePressed = NO;
+        if([pressed isEqual:@"="]){
+            [self.operations removeLastObject];
+            [self calculateAddition:self.numbers operation:self.operations[0]];
+            changePressed = YES;
+        }
+        else {
+            [self.operations removeLastObject];
+            [self.numbers removeObjectAtIndex:0];
+        }
+        [self.ACOperations removeAllObjects];
+        [self.ACNumbers removeAllObjects];
+        return changePressed;
+    }
+    if(self.numbers.count == 2){
+        if(isInsideDigit){
+            [self.ACOperations removeAllObjects];
+            [self.ACNumbers removeAllObjects];
+            return NO;
+        }
+        self.screenLabel.text = self.numbers[1];
+        [self.numbers removeLastObject];
+        if(![pressed isEqual:@"="]){
+            [self.operations removeLastObject];
+        }
+        [self.ACOperations removeAllObjects];
+        [self.ACNumbers removeAllObjects];
+    }
+    if(self.isProgression){
+        if([pressed isEqual:@"="])
+            [self.numbers addObject:@"changeDifference"];
+        else{
+            self.isProgression = NO;
+            [self.numbers addObject:self.screenLabel.text];
+        }
+        if(isInsideDigit){
+            [self resetFields];
+        }
+        [self.ACOperations removeAllObjects];
+        [self.ACNumbers removeAllObjects];
+    }
+    return NO;
+}
+//a = c {a}{=} //needed a c 0 = a v
+//a + c {a}{+} //needed a c a v
+//a + b c {a,b}{+} //needed a 0 a (= a+=) (d a+d)v
+//a + b * C {b}{*} //needed a+b* c b (= a+b)(+d b+d) (d b+d)v
+//a + b + d C {a+b,d}{+} //needed a+b+d c 0 (= (a+b)=) (e a+b+e)v
+//a + b * d C {b,d}{*} //needed b 0 (=a+b*) (d a+b*d)v
+//a += c {}{+} //needed b 0 (= b+=) (d d)v
+//a+b= c {}{+} //needed e 0 (= b+=) (d d)
+//a+b*= c {}{X} //needed e 0 (= b*=) (d d)
+//a+b*d= c {}{X} //needed e 0 (= b*=) (d d) arrives from digit with screenText 0 that overwrites last number
 
 - (void)viewDidLoad {
     [self resetFields];
