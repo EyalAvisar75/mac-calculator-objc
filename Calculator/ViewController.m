@@ -156,7 +156,7 @@
                     self.isLastDigit = NO;
                     return;
                 }
-//        self.isLastDigit = NO;//damages a+b*c in isAXB
+
         if([self isAXB]){
             if(self.operations.count > 1 && [[self.operations lastObject] isEqual:@"="]){
                 [self.operations removeLastObject];
@@ -175,7 +175,7 @@
         
     }
     if(self.isProgression){
-        if([[self.operations lastObject] isEqual:@"="]){
+        if(![[self.operations lastObject] isEqual:@"="]){
             self.isProgression = NO;
             [self.operations removeAllObjects];
             [self.operations addObject:[pressed currentTitle]];
@@ -234,6 +234,7 @@
         return NO;
     }
     
+    
     if([self.numbers containsObject:@"changeDifference"]){
         quotient = self.screenLabel.text;
         [self.numbers removeObject:@"changeDifference"];
@@ -243,6 +244,7 @@
         [self calculateAddition:@[self.screenLabel.text,self.numbers[0]] operation:self.operations[0]];
         [self.operations removeObjectAtIndex:0];
         termN = [[NSMutableString alloc]initWithString: self.screenLabel.text];
+        self.isLastDigit = NO;
         self.isProgression = YES;
         return YES;
     }
@@ -252,6 +254,7 @@
         [self.operations removeObjectAtIndex:0];
         [self.numbers removeAllObjects];
         termN = [[NSMutableString alloc]initWithString: self.screenLabel.text];
+        self.isLastDigit = NO;
         self.isProgression = YES;
         return YES;
     }
@@ -285,6 +288,7 @@
         if(operands.count == 2 && [self calculateMultiplication:operands operation:self.operations[0]]){
             [self calculated1Numbers];
             termN = [[NSMutableString alloc]initWithString: self.screenLabel.text];
+            self.isLastDigit = NO;
             return YES;
         }
     }
